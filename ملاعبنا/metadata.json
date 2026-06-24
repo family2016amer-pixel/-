@@ -1,0 +1,6 @@
+{
+  "name": "الكابتن",
+  "description": "منصتك الرياضية المتكاملة في سوريا - حجز، تنظيم، اكتشاف، تألق. تطبيق لإدارة المنظومة الرياضية وحجز الملاعب واكتشاف المواهب وتنظيم البطولات.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
