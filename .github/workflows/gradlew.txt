@@ -1,0 +1,3 @@
+#!/bin/sh
+JAVA_HOME=${JAVA_HOME:-/usr/lib/jvm/java-11-openjdk}
+exec java -Xmx64m -Xms64m -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain "$@"
