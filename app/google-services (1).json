@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "375487244194",
+    "project_id": "amer-alcaptain",
+    "storage_bucket": "amer-alcaptain.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375487244194:android:87162a51e5848ba3dfb4fb",
+        "android_client_info": {
+          "package_name": "com.alcaptan.sportsapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAN1RYfl9WwrjPRKAKmTuDAH4t_lLHrtXs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
