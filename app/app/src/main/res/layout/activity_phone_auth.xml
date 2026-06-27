@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:gravity="center">
+
+    <EditText
+        android:id="@+id/phoneNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="رقم الجوال مع مفتاح الدولة"
+        android:inputType="phone" />
+
+    <Button
+        android:id="@+id/sendCodeBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="إرسال رمز التحقق" />
+
+    <EditText
+        android:id="@+id/otpCode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="رمز التحقق"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/verifyCodeBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="تحقق من الرمز" />
+
+</LinearLayout>
