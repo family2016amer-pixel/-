@@ -305,7 +305,7 @@ fun PlaygroundCardItem(playground: Playground, viewModel: AppViewModel, onBookCl
       .shadow(4.dp, RoundedCornerShape(16.dp))
   ) {
     Column(modifier = Modifier.padding(16.dp)) {
-      val playgroundImgUrl = when (playground.id) {
+      val playgroundImgUrl = if (playground.imageUri.isNotEmpty()) playground.imageUri else when (playground.id) {
         1 -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&auto=format&fit=crop"
         2 -> "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=500&auto=format&fit=crop"
         3 -> "https://images.unsplash.com/photo-1577223625856-758a127eedbc?w=500&auto=format&fit=crop"
@@ -403,6 +403,34 @@ fun PlaygroundCardItem(playground: Playground, viewModel: AppViewModel, onBookCl
         }
       }
 
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Manager Contact Number Display
+      val contextForCall = androidx.compose.ui.platform.LocalContext.current
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clickable {
+            try {
+              val intent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                data = android.net.Uri.parse("tel:${playground.managerPhone}")
+              }
+              contextForCall.startActivity(intent)
+            } catch (e: Exception) {}
+          }
+          .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+      ) {
+        Icon(Icons.Default.Phone, contentDescription = "Call Manager", tint = ForestGreen, modifier = Modifier.size(16.dp))
+        Text(
+          text = if (viewModel.isArabic) "للتواصل مع مسؤول الملعب: ${playground.managerPhone}" else "Contact Stadium Manager: ${playground.managerPhone}",
+          style = MaterialTheme.typography.bodySmall,
+          color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+          fontWeight = FontWeight.Bold
+        )
+      }
+
       Spacer(modifier = Modifier.height(14.dp))
 
       // Amenities row
@@ -431,15 +459,39 @@ fun PlaygroundCardItem(playground: Playground, viewModel: AppViewModel, onBookCl
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Button(
-          onClick = onBookClick,
-          colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-          shape = RoundedCornerShape(10.dp)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = if (viewModel.isArabic) "احجز الآن" else "Book Now",
-            fontWeight = FontWeight.Bold
-          )
+          IconButton(
+            onClick = {
+              try {
+                val intent = android.content.Intent(
+                  android.content.Intent.ACTION_VIEW,
+                  android.net.Uri.parse("geo:33.5138,36.2765?q=${playground.nameAr}, ${playground.city}, سوريا")
+                )
+                context.startActivity(intent)
+              } catch (e: Exception) {}
+            },
+            modifier = Modifier
+              .border(1.dp, ForestGreen, RoundedCornerShape(10.dp))
+              .size(40.dp)
+          ) {
+            Icon(Icons.Default.Place, contentDescription = "Playground Location", tint = ForestGreen)
+          }
+
+          Button(
+            onClick = onBookClick,
+            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen, contentColor = Color.Black),
+            shape = RoundedCornerShape(10.dp)
+          ) {
+            Text(
+              text = if (viewModel.isArabic) "احجز الآن" else "Book Now",
+              fontWeight = FontWeight.Bold,
+              color = Color.Black
+            )
+          }
         }
       }
     }
@@ -577,76 +629,18 @@ fun Step1TimeSelector(playground: Playground, viewModel: AppViewModel) {
       modifier = Modifier.padding(bottom = 12.dp)
     )
 
-    // 1. Multi-Date Selection Title & Row
+    // 1. Premium Monthly Calendar View
     Text(
-      text = if (viewModel.isArabic) "📆 اختر تاريخ أو تواريخ اللعب (تحديد متعدد):" else "📆 Select play date(s) (Multi-select):",
+      text = if (viewModel.isArabic) "📆 التقويم التفاعلي (اختر تاريخ أو تواريخ اللعب):" else "📆 Interactive Calendar (Select play date(s)):",
       style = MaterialTheme.typography.bodyMedium,
       color = if (viewModel.isDarkMode) Color.White else DeepSlate,
       fontWeight = FontWeight.Bold,
-      modifier = Modifier.padding(bottom = 6.dp)
+      modifier = Modifier.padding(bottom = 8.dp)
     )
+
+    InteractiveCalendarView(playgroundId = playground.id, viewModel = viewModel)
     
-    val calendarDates = remember {
-      val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-      val list = mutableListOf<String>()
-      val cal = java.util.Calendar.getInstance()
-      for (i in 0..7) {
-        list.add(sdf.format(cal.time))
-        cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
-      }
-      list
-    }
-    
-    Row(
-      modifier = Modifier
-        .fillMaxWidth()
-        .horizontalScroll(rememberScrollState())
-        .padding(vertical = 4.dp),
-      horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-      calendarDates.forEach { dateStr ->
-        val isSelected = viewModel.bookingSelectedDates.contains(dateStr)
-        val parts = dateStr.split("-")
-        val displayStr = if (parts.size == 3) "${parts[1]}-${parts[2]}" else dateStr
-        
-        Box(
-          modifier = Modifier
-            .background(
-              if (isSelected) ForestGreen else (if (viewModel.isDarkMode) DarkCardBg else Color.White),
-              RoundedCornerShape(12.dp)
-            )
-            .border(
-              1.dp,
-              if (isSelected) ForestGreen else (if (viewModel.isDarkMode) DarkBorder else LightBorder),
-              RoundedCornerShape(12.dp)
-            )
-            .clickable {
-              if (isSelected) {
-                if (viewModel.bookingSelectedDates.size > 1) {
-                  viewModel.bookingSelectedDates.remove(dateStr)
-                }
-              } else {
-                viewModel.bookingSelectedDates.add(dateStr)
-              }
-              // Update live bookingDate string
-              val datesStr = viewModel.bookingSelectedDates.joinToString(", ")
-              val daysStr = viewModel.bookingSelectedDays.joinToString(", ")
-              viewModel.bookingDate = if (daysStr.isNotEmpty()) "$datesStr ($daysStr)" else datesStr
-            }
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-          contentAlignment = Alignment.Center
-        ) {
-          Text(
-            text = displayStr,
-            color = if (isSelected) Color.Black else (if (viewModel.isDarkMode) Color.White else DeepSlate),
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
-          )
-        }
-      }
-    }
-    
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(16.dp))
     
     // 2. Multi-Day Selection Title & Row
     Text(
@@ -736,59 +730,275 @@ fun Step1TimeSelector(playground: Playground, viewModel: AppViewModel) {
       modifier = Modifier.padding(bottom = 10.dp)
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      dateSlots.forEachIndexed { idx, slot ->
-        // Simulate some intervals already booked to represent real-life stadiums
-        val isAlreadyBooked = idx == 2 || idx == 5 || idx == 8
-        val isSelected = viewModel.bookingSelectedSlots.contains(slot)
-
+    val chunkedSlots = dateSlots.chunked(3)
+    Column(
+      verticalArrangement = Arrangement.spacedBy(10.dp),
+      modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+    ) {
+      chunkedSlots.forEach { rowSlots ->
         Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(
-              if (isSelected) ForestGreen.copy(alpha = 0.2f)
-              else (if (isAlreadyBooked) Color.Gray.copy(alpha = 0.1f) else (if (viewModel.isDarkMode) DarkCardBg else Color.White))
-            )
-            .border(
-              1.dp,
-              if (isSelected) ForestGreen else (if (viewModel.isDarkMode) DarkBorder else LightBorder),
-              RoundedCornerShape(10.dp)
-            )
-            .clickable(enabled = !isAlreadyBooked) {
-              if (isSelected) {
-                viewModel.bookingSelectedSlots.remove(slot)
-              } else {
-                viewModel.bookingSelectedSlots.add(slot)
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          rowSlots.forEach { slot ->
+            // Dynamic check against real Room Database Bookings
+            val isAlreadyBooked = viewModel.bookingSelectedDates.any { dateStr ->
+              viewModel.isSlotBooked(playground.id, dateStr, slot)
+            }
+            val isSelected = viewModel.bookingSelectedSlots.contains(slot)
+
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .aspectRatio(1.1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                  if (isSelected) ForestGreen.copy(alpha = 0.25f)
+                  else if (isAlreadyBooked) Color.Gray.copy(alpha = 0.1f)
+                  else if (viewModel.isDarkMode) DarkCardBg else Color.White
+                )
+                .border(
+                  width = 2.dp,
+                  color = if (isSelected) ForestGreen else if (isAlreadyBooked) Color.Transparent else if (viewModel.isDarkMode) DarkBorder else LightBorder,
+                  shape = RoundedCornerShape(12.dp)
+                )
+                .clickable(enabled = !isAlreadyBooked) {
+                  if (isSelected) {
+                    viewModel.bookingSelectedSlots.remove(slot)
+                  } else {
+                    viewModel.bookingSelectedSlots.add(slot)
+                  }
+                }
+                .padding(6.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+              ) {
+                Icon(
+                  imageVector = if (isAlreadyBooked) Icons.Default.Close else if (isSelected) Icons.Default.CheckCircle else Icons.Default.Check,
+                  contentDescription = "Status",
+                  tint = if (isAlreadyBooked) StatusError else if (isSelected) ForestGreen else Color.Gray,
+                  modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = slot.replace(" - ", "\n"),
+                  color = if (isAlreadyBooked) Color.Gray else if (viewModel.isDarkMode) Color.White else DeepSlate,
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 11.sp,
+                  textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                  lineHeight = 14.sp
+                )
+                if (isAlreadyBooked) {
+                  Spacer(modifier = Modifier.height(2.dp))
+                  Text(
+                    text = if (viewModel.isArabic) "محجوز" else "Booked",
+                    color = StatusError,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                  )
+                }
               }
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-              imageVector = if (isAlreadyBooked) Icons.Default.Close else (if (isSelected) Icons.Default.CheckCircle else Icons.Default.Check),
-              contentDescription = "Radio button",
-              tint = if (isAlreadyBooked) StatusError else (if (isSelected) ForestGreen else Color.Gray)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-              text = slot,
-              color = if (isAlreadyBooked) Color.Gray else (if (viewModel.isDarkMode) Color.White else DeepSlate),
-              fontWeight = FontWeight.Bold
-            )
           }
+        }
+      }
+    }
+  }
+}
 
-          Text(
-            text = if (isAlreadyBooked)
-              (if (viewModel.isArabic) "محجوز ❌" else "Booked ❌")
-            else
-              (if (viewModel.isArabic) "متاح للعب ✅" else "Available ✅"),
-            color = if (isAlreadyBooked) StatusError else StatusSuccess,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold
-          )
+// ==========================================
+// COMPONENT: INTERACTIVE MONTHLY CALENDAR
+// ==========================================
+@Composable
+fun InteractiveCalendarView(playgroundId: Int, viewModel: AppViewModel) {
+  val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US) }
+  
+  // Keep track of the month/year we are currently viewing
+  var calendarInstance by remember { mutableStateOf(java.util.Calendar.getInstance()) }
+  val currentMonthName = if (viewModel.isArabic) {
+    val months = listOf("كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول")
+    months[calendarInstance.get(java.util.Calendar.MONTH)]
+  } else {
+    calendarInstance.getDisplayName(java.util.Calendar.MONTH, java.util.Calendar.LONG, java.util.Locale.US) ?: ""
+  }
+  val year = calendarInstance.get(java.util.Calendar.YEAR)
+  val month = calendarInstance.get(java.util.Calendar.MONTH)
+  
+  // Maximum days in this month
+  val daysInMonth = calendarInstance.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+  
+  // Day of week of the 1st day of the month
+  val firstDayCal = java.util.Calendar.getInstance().apply {
+    set(java.util.Calendar.YEAR, year)
+    set(java.util.Calendar.MONTH, month)
+    set(java.util.Calendar.DAY_OF_MONTH, 1)
+  }
+  
+  // Map standard DAY_OF_WEEK to index starting from Saturday (0 = Sat, 1 = Sun, 2 = Mon, 3 = Tue, 4 = Wed, 5 = Thu, 6 = Fri)
+  val firstDayOfWeekIndex = when (firstDayCal.get(java.util.Calendar.DAY_OF_WEEK)) {
+    java.util.Calendar.SATURDAY -> 0
+    java.util.Calendar.SUNDAY -> 1
+    java.util.Calendar.MONDAY -> 2
+    java.util.Calendar.TUESDAY -> 3
+    java.util.Calendar.WEDNESDAY -> 4
+    java.util.Calendar.THURSDAY -> 5
+    java.util.Calendar.FRIDAY -> 6
+    else -> 0
+  }
+  
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+      .background(
+        if (viewModel.isDarkMode) Color(0xFF1E293B) else Color.White,
+        RoundedCornerShape(16.dp)
+      )
+      .border(
+        1.dp,
+        if (viewModel.isDarkMode) Color(0xFF334155) else LightBorder,
+        RoundedCornerShape(16.dp)
+      )
+      .padding(12.dp)
+  ) {
+    // Month/Year header with prev/next buttons
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      IconButton(onClick = {
+        val prev = java.util.Calendar.getInstance().apply {
+          time = calendarInstance.time
+          add(java.util.Calendar.MONTH, -1)
+        }
+        calendarInstance = prev
+      }) {
+        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev Month", tint = ForestGreen)
+      }
+      
+      Text(
+        text = "$currentMonthName $year",
+        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.titleMedium,
+        color = if (viewModel.isDarkMode) Color.White else DeepSlate
+      )
+      
+      IconButton(onClick = {
+        val next = java.util.Calendar.getInstance().apply {
+          time = calendarInstance.time
+          add(java.util.Calendar.MONTH, 1)
+        }
+        calendarInstance = next
+      }) {
+        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Month", tint = ForestGreen)
+      }
+    }
+    
+    Spacer(modifier = Modifier.height(8.dp))
+    
+    // Weekday names row
+    val weekHeaders = if (viewModel.isArabic) {
+      listOf("السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة")
+    } else {
+      listOf("Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri")
+    }
+    
+    Row(modifier = Modifier.fillMaxWidth()) {
+      weekHeaders.forEach { dayName ->
+        Text(
+          text = dayName.take(3),
+          modifier = Modifier.weight(1f),
+          textAlign = TextAlign.Center,
+          fontWeight = FontWeight.Bold,
+          fontSize = 11.sp,
+          color = Color.Gray
+        )
+      }
+    }
+    
+    Spacer(modifier = Modifier.height(6.dp))
+    
+    // Monthly Days Grid
+    val totalCells = firstDayOfWeekIndex + daysInMonth
+    val rowsCount = (totalCells + 6) / 7
+    
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      for (r in 0 until rowsCount) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+          for (c in 0..6) {
+            val cellIndex = r * 7 + c
+            val dayNumber = cellIndex - firstDayOfWeekIndex + 1
+            
+            if (dayNumber in 1..daysInMonth) {
+              val dateCal = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.YEAR, year)
+                set(java.util.Calendar.MONTH, month)
+                set(java.util.Calendar.DAY_OF_MONTH, dayNumber)
+              }
+              val dateStr = sdf.format(dateCal.time)
+              val isSelected = viewModel.bookingSelectedDates.contains(dateStr)
+              
+              // Reactive lookup for existing bookings count on this date
+              val bookedCountOnDay = viewModel.bookings.value.count { booking ->
+                booking.playgroundId == playgroundId &&
+                booking.status != "CANCELLED" &&
+                booking.date.contains(dateStr)
+              }
+              
+              Box(
+                modifier = Modifier
+                  .weight(1f)
+                  .aspectRatio(1f)
+                  .padding(2.dp)
+                  .clip(RoundedCornerShape(8.dp))
+                  .background(
+                    if (isSelected) ForestGreen else Color.Transparent
+                  )
+                  .border(
+                    width = 1.dp,
+                    color = if (isSelected) ForestGreen else Color.Gray.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp)
+                  )
+                  .clickable {
+                    if (isSelected) {
+                      if (viewModel.bookingSelectedDates.size > 1) {
+                        viewModel.bookingSelectedDates.remove(dateStr)
+                      }
+                    } else {
+                      viewModel.bookingSelectedDates.add(dateStr)
+                    }
+                    
+                    val datesStr = viewModel.bookingSelectedDates.joinToString(", ")
+                    val daysStr = viewModel.bookingSelectedDays.joinToString(", ")
+                    viewModel.bookingDate = if (daysStr.isNotEmpty()) "$datesStr ($daysStr)" else datesStr
+                  },
+                contentAlignment = Alignment.Center
+              ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                  Text(
+                    text = dayNumber.toString(),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = if (isSelected) Color.Black else (if (viewModel.isDarkMode) Color.White else DeepSlate)
+                  )
+                  
+                  if (bookedCountOnDay > 0) {
+                    Box(
+                      modifier = Modifier
+                        .padding(top = 2.dp)
+                        .size(4.dp)
+                        .background(StatusError, CircleShape)
+                    )
+                  }
+                }
+              }
+            } else {
+              Spacer(modifier = Modifier.weight(1f))
+            }
+          }
         }
       }
     }
@@ -1083,7 +1293,7 @@ fun Step4PaymentSection(viewModel: AppViewModel) {
 
     // Payment gateways selectors
     Text(
-      text = if (viewModel.isArabic) "حدد طريقة دفع العمولة والمبلغ" else "Select Payment Method",
+      text = if (viewModel.isArabic) "طريقة دفع العمولة والمبلغ" else "Payment Method",
       style = MaterialTheme.typography.bodyLarge,
       color = Color.Gray,
       modifier = Modifier.padding(bottom = 10.dp)
@@ -1097,53 +1307,23 @@ fun Step4PaymentSection(viewModel: AppViewModel) {
       viewModel = viewModel
     )
 
-    PaymentSelectorRow(
-      methodKey = "SHAM_CASH",
-      title = if (viewModel.isArabic) "تحويل شام كاش / سيريتل كاش" else "Sham Cash / Syriatel Pay",
-      subtitle = if (viewModel.isArabic) "تحويل العمولة لـ 0999999999 وإدخال رقم الحوالة للتأكيد" else "Send commission to 0999999999 and enter Tx ref code",
-      icon = Icons.Default.Send,
-      viewModel = viewModel
-    )
-
-    PaymentSelectorRow(
-      methodKey = "UP_COINS",
-      title = if (viewModel.isArabic) "رصيد الحساب المسبق (ملاعبنا)" else "Account Credit Balance",
-      subtitle = "${if (viewModel.isArabic) "رصيدك المتاح:" else "Your Balance:"} ${viewModel.userWalletBalance.toInt()} ل.س",
-      icon = Icons.Default.Star,
-      viewModel = viewModel,
-      enabled = viewModel.userWalletBalance >= total
-    )
-
-    if (viewModel.bookingPaymentMethod == "SHAM_CASH") {
-      Spacer(modifier = Modifier.height(10.dp))
-      OutlinedTextField(
-        value = viewModel.bookingPaymentTxRef,
-        onValueChange = { viewModel.bookingPaymentTxRef = it },
-        label = { Text(if (viewModel.isArabic) "أدخل رقم الحوالة الإلكترونية للتأكيد المالي" else "Enter Electronic Transfer Tx Reference No.") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+    Spacer(modifier = Modifier.height(10.dp))
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .background(StatusWarning.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+        .border(1.dp, StatusWarning, RoundedCornerShape(10.dp))
+        .padding(12.dp)
+    ) {
+      Text(
+        text = if (viewModel.isArabic)
+          "⚠️ تنبيه: سيتم دفع المبلغ نقداً لمسؤول الملعب. يرجى تأكيد الحجز خلال 48 ساعة وإلا سيتم إلغاؤه تلقائياً."
+        else
+          "⚠️ Note: Please pay cash directly to stadium manager within 48 hours to prevent auto-cancellation.",
+        color = StatusWarning,
+        style = MaterialTheme.typography.bodySmall,
+        lineHeight = 16.sp
       )
-    }
-
-    if (viewModel.bookingPaymentMethod == "CASH") {
-      Spacer(modifier = Modifier.height(10.dp))
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .background(StatusWarning.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
-          .border(1.dp, StatusWarning, RoundedCornerShape(10.dp))
-          .padding(12.dp)
-      ) {
-        Text(
-          text = if (viewModel.isArabic)
-            "⚠️ تنبيه: سيتم دفع المبلغ نقداً لمسؤول الملعب. يرجى تأكيد الحجز خلال 48 ساعة وإلا سيتم إلغاؤه تلقائياً."
-          else
-            "⚠️ Note: Please pay cash directly to stadium manager within 48 hours to prevent auto-cancellation.",
-          color = StatusWarning,
-          style = MaterialTheme.typography.bodySmall,
-          lineHeight = 16.sp
-        )
-      }
     }
   }
 }

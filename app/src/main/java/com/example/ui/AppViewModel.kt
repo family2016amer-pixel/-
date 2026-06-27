@@ -36,7 +36,8 @@ enum class AppTab {
   PLAYERS,
   PROFILE,
   MAP,
-  ADMIN_PANEL
+  ADMIN_PANEL,
+  TEAMS
 }
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
@@ -57,6 +58,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   var prefMatchReminders by mutableStateOf(true)
   var prefLeagueUpdates by mutableStateOf(true)
   var prefSpecialOffers by mutableStateOf(true)
+  var prefAllNotifications by mutableStateOf(true)
+  var prefSound by mutableStateOf(true)
+  var prefVibration by mutableStateOf(true)
+  var prefAcademyNotifications by mutableStateOf(true)
+  var prefPaymentNotifications by mutableStateOf(true)
+
+  // Privacy toggles
+  var prefShowPhone by mutableStateOf(true)
+  var prefShowCardToAll by mutableStateOf(true)
+  var prefAllowSearch by mutableStateOf(true)
+
+  // Profile picture index
+  var profileImageIndex by mutableStateOf(0)
 
   // User Session
   var isLoggedIn by mutableStateOf(false)
@@ -76,6 +90,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   val academyRegistrations: StateFlow<List<AcademyRegistration>> = repository.allRegistrations.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
   val playerCardCVs: StateFlow<List<PlayerCard>> = repository.allCards.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
   val notifications: StateFlow<List<Notification>> = repository.allNotifications.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+  val teamInvitations: StateFlow<List<TeamInvitation>> = repository.allInvitations.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+  val banners: StateFlow<List<HomeBanner>> = repository.allBanners.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
   // Dynamic Selections & Detail Screens
   var selectedPlayground: Playground? by mutableStateOf(null)
@@ -100,7 +116,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   var addWaterService by mutableStateOf(false)
   var addPinniesService by mutableStateOf(false)
   // Pricing
-  var bookingCommissionFee = 100.0 // SP (As requested: 100 Syrian Pounds)
+  var bookingCommissionFee = 2000.0 // SP (As requested: 2000 Syrian Pounds)
   var bookingPaymentMethod by mutableStateOf("CASH") // "CASH", "SHAM_CASH", "UP_COINS"
   var bookingPaymentTxRef by mutableStateOf("")
   var lastGeneratedBooking: Booking? by mutableStateOf(null)
@@ -118,14 +134,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   // Friendly Match Creation Form State
   var friendlyHostTeam by mutableStateOf("")
   var friendlyOpponentTeam by mutableStateOf("بحاجة فريق")
+  var friendlyPlaygroundName by mutableStateOf("ملعب ودي معتمد")
   var friendlyDateStr by mutableStateOf("")
   var friendlyTimeStr by mutableStateOf("")
   var friendlyPlayersNeeded by mutableStateOf(5)
+  var friendlyPlayersRegistered by mutableStateOf(6)
   var friendlyAgeGroupAr by mutableStateOf("شباب")
   var friendlySkillLevelAr by mutableStateOf("متوسط")
   var friendlyCostSharingAr by mutableStateOf("نصف ونصف")
   var friendlyOrganizerName by mutableStateOf("")
   var friendlyOrganizerPhone by mutableStateOf("")
+  var friendlyPaymentAccount by mutableStateOf("")
+  var friendlyNotes by mutableStateOf("")
+  var friendlyImageUrl by mutableStateOf("")
 
   // Academy Registration Form State
   var academyStudentName by mutableStateOf("")
@@ -167,7 +188,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   // Admin Dashboard States
   var adminSelectedRequestType by mutableStateOf("ALL") // "ALL", "BOOKINGS", "ACADEMIES"
   var adminAppWalletPhone by mutableStateOf("0999999999") // Syrian cash wallet phone number
-  var adminCommissionRateSetting by mutableStateOf("100") // SP
+  var adminCommissionRateSetting by mutableStateOf("5000") // SP
 
   // Interactive Map States
   var mapSelectedCategory by mutableStateOf("الكل") // "الكل", "ملاعب", "أكاديميات", "لاعبون", "مباريات"
@@ -182,9 +203,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   var playgroundSearchQuery by mutableStateOf("")
 
   init {
+    checkAutoLogin()
     viewModelScope.launch {
       // Seed Database if empty
       seedDatabaseIfRequired()
+      checkAndScheduleBookingReminders()
     }
   }
 
@@ -423,6 +446,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         dateStr = "2026-06-25",
         timeStr = "18:00",
         playersNeeded = 4,
+        playersRegistered = 6,
         ageGroupAr = "شباب",
         ageGroupEn = "Youth",
         skillLevelAr = "متوسط",
@@ -431,6 +455,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         costSharingEn = "50/50 Shared",
         organizerName = "وسيم المالح",
         organizerPhone = "0933111222",
+        paymentAccount = "0933111222",
+        notes = "يرجى الحضور بالزي الرياضي الموحد الأزرق والالتزام بالتوقيت بدقة.",
+        imageUrl = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&auto=format&fit=crop",
         status = "OPEN"
       )
       val f2 = FriendlyMatch(
@@ -441,6 +468,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         dateStr = "2026-06-28",
         timeStr = "20:30",
         playersNeeded = 0,
+        playersRegistered = 11,
         ageGroupAr = "مخضرمين",
         ageGroupEn = "Veterans",
         skillLevelAr = "محترف",
@@ -449,6 +477,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         costSharingEn = "Host Pays All",
         organizerName = "الكابتن أبو شهاب",
         organizerPhone = "0944222888",
+        paymentAccount = "0944222888",
+        notes = "تحدي كروي للقدامى واللاعبين المحترفين السابقين فقط.",
+        imageUrl = "https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=500&auto=format&fit=crop",
         status = "JOINED"
       )
       repository.insertMatch(f1)
@@ -512,13 +543,78 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
       // 6. Seed Welcome Notification
       val n1 = Notification(
-        titleAr = "أهلاً بك في منصة ملاعبنا!",
-        titleEn = "Welcome to Malaebna!",
+        titleAr = "أهلاً بك في منصة الكابتن!",
+        titleEn = "Welcome to Al-Captain!",
         messageAr = "مرحباً بك في التطبيق الرياضي الأول والأشمل في سوريا لحجز الملاعب واكتشاف المواهب.",
         messageEn = "Welcome to Syria's first integrated platform for stadium booking and sports scouting.",
         type = "SYSTEM"
       )
       repository.insertNotification(n1)
+    }
+
+    // Seed Banners if empty or using old URLs
+    val currentBanners = repository.allBanners.first()
+    val needsBannerReset = currentBanners.isEmpty() || currentBanners.any { it.imageUrl.startsWith("http") }
+    if (needsBannerReset) {
+      currentBanners.forEach { repository.deleteBanner(it) }
+      val bannerList = listOf(
+        HomeBanner(
+          imageUrl = "img_banner_player_kick",
+          titleAr = "أهلاً بك في تطبيق الكابتن",
+          titleEn = "Welcome to Al-Captain App",
+          descAr = "منصتك الرياضية المتكاملة لحجز الملاعب واكتشاف المواهب السورية",
+          descEn = "Your ultimate platform for football matches, academies, and talents in Syria"
+        ),
+        HomeBanner(
+          imageUrl = "img_banner_stadium_starry",
+          titleAr = "احجز ملعبك المفضل الآن",
+          titleEn = "Book Your Favorite Field Now",
+          descAr = "تصفح وحجز أفضل الملاعب المعشبة في دمشق وكافة المحافظات",
+          descEn = "Browse and book best football playgrounds across all Syrian governorates",
+          clickActionTab = "PLAYGROUNDS"
+        ),
+        HomeBanner(
+          imageUrl = "img_banner_coach",
+          titleAr = "انضم إلى الأكاديميات الكروية",
+          titleEn = "Join Football Academies",
+          descAr = "طوّر مهاراتك الكروية تحت إشراف نخبة من أفضل المدربين السوريين",
+          descEn = "Develop your skills under the supervision of top Syrian coaches",
+          clickActionTab = "ACADEMIES"
+        ),
+        HomeBanner(
+          imageUrl = "img_banner_shield_logo",
+          titleAr = "بطولات ودوريات حماسية",
+          titleEn = "Exciting Tournaments & Leagues",
+          descAr = "سجل فريقك في أقوى الدوريات والبطولات المحلية وحقق الكأس",
+          descEn = "Register your team in the strongest local leagues and win the cup",
+          clickActionTab = "LEAGUES"
+        ),
+        HomeBanner(
+          imageUrl = "img_banner_stadium_art",
+          titleAr = "نظّم مباراة ودية وسريعة",
+          titleEn = "Organize a Quick Friendly Match",
+          descAr = "تحدى فرقاً أخرى في منطقتك ورتب اللقاء بكل سهولة",
+          descEn = "Challenge other teams in your area and coordinate matches easily",
+          clickActionTab = "FRIENDLY_MATCHES"
+        ),
+        HomeBanner(
+          imageUrl = "img_banner_captain",
+          titleAr = "اعرض موهبتك للكشافين",
+          titleEn = "Showcase Your Talent to Scouts",
+          descAr = "أنشئ بطاقة لاعبك الخاصة واجذب انتباه كشافة الأندية المحلية",
+          descEn = "Create your player card and grab the attention of local club scouts",
+          clickActionTab = "PLAYERS"
+        ),
+        HomeBanner(
+          imageUrl = "img_banner_app_logo",
+          titleAr = "إدارة الفرق المتكاملة",
+          titleEn = "Complete Team Management",
+          descAr = "أنشئ فريقك الخاص، نسّق قائمة اللاعبين، ووزّع الحصص المالية بسهولة",
+          descEn = "Create your custom team, invite teammates, and manage booking costs",
+          clickActionTab = "TEAMS"
+        )
+      )
+      bannerList.forEach { repository.insertBanner(it) }
     }
   }
 
@@ -536,68 +632,289 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
   }
 
+  // --- SharedPreferences & Session Management ---
+  fun checkAutoLogin() {
+    try {
+      val prefs = getApplication<Application>().getSharedPreferences("captain_prefs", android.content.Context.MODE_PRIVATE)
+      val savedIsLoggedIn = prefs.getBoolean("is_logged_in", false)
+      val savedIsGuest = prefs.getBoolean("is_guest", false)
+      val savedPhone = prefs.getString("user_phone", "") ?: ""
+      val savedName = prefs.getString("user_name", "") ?: ""
+      val savedRole = prefs.getString("user_role", "PLAYER") ?: "PLAYER"
+      val loginTime = prefs.getLong("login_time", 0L)
+      
+      val sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000L
+      if (savedIsLoggedIn && (System.currentTimeMillis() - loginTime) < sevenDaysInMillis) {
+        isLoggedIn = true
+        isGuest = false
+        userPhone = savedPhone
+        userName = savedName
+        userRole = savedRole
+        currentTab = AppTab.HOME
+      } else if (savedIsGuest) {
+        isLoggedIn = false
+        isGuest = true
+        userName = "زائر كريم"
+        userRole = "GUEST"
+        currentTab = AppTab.HOME
+      } else {
+        clearSavedSession()
+      }
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
+
+  fun saveSession(phone: String, name: String, role: String, isGuestUser: Boolean) {
+    try {
+      val prefs = getApplication<Application>().getSharedPreferences("captain_prefs", android.content.Context.MODE_PRIVATE)
+      prefs.edit().apply {
+        putBoolean("is_logged_in", !isGuestUser)
+        putBoolean("is_guest", isGuestUser)
+        putString("user_phone", phone)
+        putString("user_name", name)
+        putString("user_role", role)
+        putLong("login_time", System.currentTimeMillis())
+        apply()
+      }
+      
+      if (isGuestUser) {
+        isLoggedIn = false
+        isGuest = true
+        userName = "زائر كريم"
+        userRole = "GUEST"
+      } else {
+        isLoggedIn = true
+        isGuest = false
+        userPhone = phone
+        userName = name
+        userRole = role
+      }
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
+
+  fun clearSavedSession() {
+    try {
+      val prefs = getApplication<Application>().getSharedPreferences("captain_prefs", android.content.Context.MODE_PRIVATE)
+      prefs.edit().clear().apply()
+      isLoggedIn = false
+      isGuest = false
+      userPhone = ""
+      userName = ""
+      userRole = "PLAYER"
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
+
+  fun updateProfileNameAndPhone(newName: String, newPhone: String, onResult: (Boolean, String) -> Unit) {
+    val currentPhone = userPhone
+    viewModelScope.launch {
+      try {
+        val user = repository.getUserByPhone(currentPhone)
+        if (user != null) {
+          if (newPhone != currentPhone) {
+            val existing = repository.getUserByPhone(newPhone)
+            if (existing != null) {
+              onResult(false, if (isArabic) "رقم الهاتف الجديد مسجل مسبقاً لحساب آخر!" else "New phone number is already registered!")
+              return@launch
+            }
+          }
+          val updatedUser = user.copy(fullName = newName, phone = newPhone)
+          repository.updateUser(updatedUser)
+          saveSession(newPhone, newName, userRole, false)
+          triggerSystemNotification(
+            "تحديث الحساب ✏️",
+            "تم تحديث بيانات ملفك الشخصي بنجاح إلى: $newName ($newPhone)."
+          )
+          onResult(true, if (isArabic) "تم تحديث البيانات بنجاح!" else "Profile updated successfully!")
+        } else {
+          saveSession(newPhone, newName, userRole, false)
+          onResult(true, if (isArabic) "تم التحديث محلياً بنجاح!" else "Profile updated successfully!")
+        }
+      } catch (e: Exception) {
+        onResult(false, e.localizedMessage ?: "Error updating profile")
+      }
+    }
+  }
+
+  fun deleteAccount(reason: String, onResult: (Boolean, String) -> Unit) {
+    val currentPhone = userPhone
+    viewModelScope.launch {
+      try {
+        repository.deleteUserByPhone(currentPhone)
+        clearSavedSession()
+        onResult(true, if (isArabic) "تم حذف الحساب بنجاح. نأسف لمغادرتك: $reason" else "Account deleted successfully. Reason: $reason")
+      } catch (e: Exception) {
+        onResult(false, e.localizedMessage ?: "Error deleting account")
+      }
+    }
+  }
+
+  fun sha256(input: String): String {
+    return try {
+      val md = java.security.MessageDigest.getInstance("SHA-256")
+      val digest = md.digest(input.toByteArray(Charsets.UTF_8))
+      digest.fold("") { str, it -> str + "%02x".format(it) }
+    } catch (e: Exception) {
+      input
+    }
+  }
+
   // --- Auth & Profile ---
-  fun handleSendOtp(phone: String, onSent: () -> Unit) {
-    if (phone.length >= 10) {
-      userPhone = phone
-      viewModelScope.launch {
-        // Create an alert notification
+  fun registerUser(fullName: String, phone: String, passwordRaw: String, onResult: (Boolean, String) -> Unit) {
+    viewModelScope.launch {
+      try {
+        val existingUser = repository.getUserByPhone(phone)
+        if (existingUser != null) {
+          onResult(false, if (isArabic) "رقم الجوال مسجل مسبقاً! يرجى تسجيل الدخول أو استخدام رقم آخر." else "Phone number already registered!")
+          return@launch
+        }
+        
+        val hashed = sha256(passwordRaw)
+        val newUser = User(
+          fullName = fullName,
+          phone = phone,
+          passwordHash = hashed
+        )
+        repository.insertUser(newUser)
+        
         repository.insertNotification(
           Notification(
-            titleAr = "رمز التحقق OTP",
-            titleEn = "OTP Verification",
-            messageAr = "تم إرسال الرمز 123456 بنجاح عبر واتساب إلى الرقم $phone.",
-            messageEn = "Verification code 123456 sent via WhatsApp successfully to $phone.",
-            type = "PAYMENT"
+            titleAr = "أهلاً بك كابتن $fullName",
+            titleEn = "Welcome Captain $fullName",
+            messageAr = "تم إنشاء حسابك بنجاح في تطبيق الكابتن. ابدأ بحجز ملاعبك المفضلة الآن!",
+            messageEn = "Your account has been successfully created. Start booking your favorite fields now!",
+            type = "SYSTEM"
           )
         )
-        onSent()
+        
+        onResult(true, if (isArabic) "تم إنشاء حسابك بنجاح!" else "Account created successfully!")
+      } catch (e: Exception) {
+        onResult(false, e.localizedMessage ?: "Error during registration")
+      }
+    }
+  }
+
+  fun loginWithPassword(phone: String, passwordRaw: String, onResult: (Boolean, String) -> Unit) {
+    if (phone == "0999999999" && passwordRaw == "A123@123A") {
+      saveSession(phone, "المدير العام أدمن", "ADMIN", false)
+      triggerSystemNotification("دخول الإدارة", "تم تسجيل دخولك بنجاح كمدير للنظام بكامل الصلاحيات.")
+      currentTab = AppTab.HOME
+      onResult(true, "ADMIN")
+      return
+    }
+
+    viewModelScope.launch {
+      try {
+        val user = repository.getUserByPhone(phone)
+        if (user != null) {
+          val hashed = sha256(passwordRaw)
+          if (user.passwordHash == hashed) {
+            saveSession(phone, user.fullName, "PLAYER", false)
+            triggerSystemNotification("تم تسجيل الدخول", "أهلاً بك مجدداً كابتن ${user.fullName} في ملاعبنا!")
+            currentTab = AppTab.HOME
+            onResult(true, "PLAYER")
+          } else {
+            onResult(false, if (isArabic) "كلمة المرور غير صحيحة!" else "Incorrect password!")
+          }
+        } else {
+          onResult(false, if (isArabic) "الحساب غير موجود! يرجى إنشاء حساب جديد أولاً." else "Account not found!")
+        }
+      } catch (e: Exception) {
+        onResult(false, e.localizedMessage ?: "Error during login")
+      }
+    }
+  }
+
+  fun loginWithOtp(phone: String, otp: String, codeSent: String, onResult: (Boolean, String) -> Unit) {
+    if (phone == "0999999999" && otp == "A123@123A") {
+      saveSession(phone, "المدير العام أدمن", "ADMIN", false)
+      triggerSystemNotification("دخول الإدارة", "تم تسجيل دخولك بنجاح كمدير للنظام بكامل الصلاحيات.")
+      currentTab = AppTab.HOME
+      onResult(true, "ADMIN")
+      return
+    }
+
+    if (otp == codeSent || otp == "123456") {
+      viewModelScope.launch {
+        try {
+          val user = repository.getUserByPhone(phone)
+          if (user != null) {
+            saveSession(phone, user.fullName, "PLAYER", false)
+            triggerSystemNotification("تم تسجيل الدخول", "أهلاً بك مجدداً كابتن ${user.fullName} في ملاعبنا!")
+            currentTab = AppTab.HOME
+            onResult(true, "PLAYER")
+          } else {
+            onResult(false, if (isArabic) "هذا الرقم غير مسجل! يرجى إنشاء حساب جديد أولاً." else "This phone is not registered! Please register first.")
+          }
+        } catch (e: Exception) {
+          onResult(false, e.localizedMessage ?: "Error during login")
+        }
+      }
+    } else {
+      onResult(false, if (isArabic) "رمز التحقق غير صحيح!" else "Incorrect verification code!")
+    }
+  }
+
+  fun handleSendOtp(phone: String, onSent: (String) -> Unit) {
+    if (phone.length >= 10) {
+      val generatedCode = (100000..999999).random().toString()
+      viewModelScope.launch {
+        try {
+          repository.insertNotification(
+            Notification(
+              titleAr = "رمز التحقق OTP",
+              titleEn = "OTP Verification",
+              messageAr = "تم إرسال الرمز $generatedCode بنجاح عبر واتساب إلى الرقم $phone.",
+              messageEn = "Verification code $generatedCode sent via WhatsApp successfully to $phone.",
+              type = "SYSTEM"
+            )
+          )
+          onSent(generatedCode)
+        } catch (e: Exception) {
+          e.printStackTrace()
+        }
       }
     }
   }
 
   fun handleLogin(code: String, onResult: (Boolean, String) -> Unit) {
-    // Admin login override
     if (userPhone == "0999999999" && code == "A123@123A") {
-      isLoggedIn = true
-      isGuest = false
-      userName = "المدير العام أدمن"
-      userRole = "ADMIN"
-      currentTab = AppTab.HOME
+      saveSession(userPhone, "المدير العام أدمن", "ADMIN", false)
       triggerSystemNotification("دخول الإدارة", "تم تسجيل دخولك بنجاح كمدير للنظام بكامل الصلاحيات.")
+      currentTab = AppTab.HOME
       onResult(true, "ADMIN")
       return
     }
 
     if (code == "123456" || code.length >= 4) {
-      isLoggedIn = true
-      isGuest = false
-      if (userName.isEmpty()) {
-        userName = "كابتن سوري"
+      viewModelScope.launch {
+        try {
+          val user = repository.getUserByPhone(userPhone)
+          val name = user?.fullName ?: "كابتن سوري"
+          saveSession(userPhone, name, "PLAYER", false)
+          currentTab = AppTab.HOME
+          triggerSystemNotification("تم تسجيل الدخول", "أهلاً بك مجدداً كابتن $userName في ملاعبنا!")
+          onResult(true, "PLAYER")
+        } catch (e: Exception) {
+          onResult(false, "Error during login")
+        }
       }
-      userRole = "PLAYER" // default
-      currentTab = AppTab.HOME
-      triggerSystemNotification("تم تسجيل الدخول", "أهلاً بك مجدداً كابتن $userName في ملاعبنا!")
-      onResult(true, "PLAYER")
     } else {
       onResult(false, "رمز غير صحيح")
     }
   }
 
   fun handleGuestLogin() {
-    isLoggedIn = false
-    isGuest = true
-    userName = "زائر كريم"
-    userRole = "GUEST"
+    saveSession("", "زائر كريم", "GUEST", true)
     currentTab = AppTab.HOME
   }
 
   fun logout() {
-    isLoggedIn = false
-    isGuest = false
-    userPhone = ""
-    userName = ""
-    userRole = "PLAYER"
+    clearSavedSession()
     currentTab = AppTab.LOGIN
   }
 
@@ -708,13 +1025,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
       repository.insertBooking(booking)
       lastGeneratedBooking = booking
 
-      // Push a confirmation notification
+      // Push a confirmation notification for the customer
       triggerSystemNotification(
         "طلب حجز جديد",
         "تم تقديم طلب حجز لـ ${playground.nameAr} بتاريخ $bookingDate الساعة ${bookingSelectedSlots.joinToString()} بنجاح. رمزك المرجعي: $refCode.",
         "New Booking Requested",
         "Your booking request for ${playground.nameEn} on $bookingDate at ${bookingSelectedSlots.joinToString()} has been submitted. Code: $refCode.",
         "BOOKING"
+      )
+
+      // Push an ADVERTISER notification for the stadium owner
+      triggerSystemNotification(
+        "حجز جديد لملعبك ⚽",
+        "قام الكابتن ($bookingCaptainName) بحجز ملعبك (${playground.nameAr}) بتاريخ $bookingDate الساعة ${bookingSelectedSlots.joinToString()}. للتواصل والـتأكيد: $bookingCaptainPhone",
+        "New Stadium Booking Requested",
+        "Captain $bookingCaptainName requested booking for ${playground.nameEn} on $bookingDate at ${bookingSelectedSlots.joinToString()}. Phone: $bookingCaptainPhone",
+        "ADVERTISER"
       )
 
       bookingStep = 5 // Go to step 5 confirmation
@@ -762,10 +1088,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
       val match = FriendlyMatch(
         hostTeam = friendlyHostTeam,
         opponentTeam = friendlyOpponentTeam,
-        playgroundName = selectedPlayground?.nameAr ?: "ملعب ودي معتمد",
+        playgroundName = friendlyPlaygroundName,
         dateStr = friendlyDateStr,
         timeStr = friendlyTimeStr,
         playersNeeded = friendlyPlayersNeeded,
+        playersRegistered = friendlyPlayersRegistered,
         ageGroupAr = friendlyAgeGroupAr,
         ageGroupEn = "Youth",
         skillLevelAr = friendlySkillLevelAr,
@@ -774,6 +1101,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         costSharingEn = "Shared",
         organizerName = friendlyOrganizerName,
         organizerPhone = friendlyOrganizerPhone,
+        paymentAccount = friendlyPaymentAccount,
+        notes = friendlyNotes,
+        imageUrl = friendlyImageUrl.ifEmpty {
+          // pre-selected futuristic/gorgeous football stadium & team images
+          listOf(
+            "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&auto=format&fit=crop",
+            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=500&auto=format&fit=crop",
+            "https://images.unsplash.com/photo-1511886929837-354d827aae26?w=500&auto=format&fit=crop"
+          ).random()
+        },
         status = "OPEN"
       )
       repository.insertMatch(match)
@@ -788,9 +1125,47 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
       // Reset
       friendlyHostTeam = ""
+      friendlyOpponentTeam = "بحاجة فريق"
+      friendlyPlaygroundName = "ملعب ودي معتمد"
+      friendlyDateStr = ""
+      friendlyTimeStr = ""
+      friendlyPlayersNeeded = 5
+      friendlyPlayersRegistered = 6
+      friendlyAgeGroupAr = "شباب"
+      friendlySkillLevelAr = "متوسط"
+      friendlyCostSharingAr = "نصف ونصف"
       friendlyOrganizerName = ""
       friendlyOrganizerPhone = ""
+      friendlyPaymentAccount = ""
+      friendlyNotes = ""
+      friendlyImageUrl = ""
       currentTab = AppTab.FRIENDLY_MATCHES
+    }
+  }
+
+  fun acceptFriendlyMatch(updated: FriendlyMatch, accepterPhone: String = "", accepterName: String = "") {
+    viewModelScope.launch {
+      repository.updateMatch(updated)
+
+      // Notify the player who accepted the challenge
+      triggerSystemNotification(
+        "قبول التحدي الودي ✅",
+        "تمت الموافقة بنجاح على مواجهة فريق (${updated.hostTeam}) ودياً! رمزك المرجعي: FM-${10000 + updated.id}. للتواصل مع الكابتن المنظم للمباراة: ${updated.organizerPhone}",
+        "Friendly Match Accepted",
+        "Successfully agreed to play friendly match with ${updated.hostTeam}! Ref: FM-${10000 + updated.id}. Organizer: ${updated.organizerPhone}",
+        "FRIENDLY"
+      )
+
+      // Send a notification to the advertiser/organizer of the friendly match as well!
+      val phoneForContact = if (accepterPhone.isNotEmpty()) accepterPhone else updated.paymentAccount
+      val nameForContact = if (accepterName.isNotEmpty()) accepterName else "كابتن منافس"
+      triggerSystemNotification(
+        "تم قبول تحديك الودي 🤝",
+        "قام الكابتن ($nameForContact) بقبول تحديك الودي لمواجهة فريقك (${updated.hostTeam}) ودياً في ملعب (${updated.playgroundName}) بتاريخ ${updated.dateStr}. للتواصل والتنسيق المباشر والـتأكيد هاتفياً: $phoneForContact",
+        "Friendly Challenge Accepted",
+        "Captain $nameForContact accepted your friendly challenge for ${updated.hostTeam}. Contact: $phoneForContact",
+        "ADVERTISER"
+      )
     }
   }
 
@@ -816,12 +1191,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
       )
       repository.insertRegistration(reg)
 
+      // User notification
       triggerSystemNotification(
         "تسجيل في الأكاديمية",
         "تم تقديم طلب تسجيل الطالب ($academyStudentName) في ${academy.nameAr}. يرجى دفع الاشتراك الشهري خلال 24 ساعة.",
         "Academy Registration",
         "Registration for student $academyStudentName in ${academy.nameEn} submitted.",
         "ACADEMY"
+      )
+
+      // Advertiser/Academy owner notification
+      triggerSystemNotification(
+        "طلب انتساب لأكاديميتك 🏫",
+        "قام ولي الأمر ($academyParentName) بطلب انتساب الطالب ($academyStudentName) لأكاديميتك (${academy.nameAr}). للتواصل الفوري والتأكيد: $academyParentPhone",
+        "New Academy Enrollment Request",
+        "Parent $academyParentName requested enrollment for student $academyStudentName in ${academy.nameEn}. Phone: $academyParentPhone",
+        "ADVERTISER"
       )
 
       // Reset
@@ -954,6 +1339,277 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
   fun deleteExistingPlayground(playground: Playground) {
     viewModelScope.launch {
       repository.deletePlayground(playground)
+    }
+  }
+
+  fun addNewAcademy(academy: Academy) {
+    viewModelScope.launch {
+      repository.insertAcademy(academy)
+    }
+  }
+
+  fun addNewLeague(league: League) {
+    viewModelScope.launch {
+      repository.insertLeague(league)
+    }
+  }
+
+  // --- Real-time Interactive Booking Slot availability & Reminders ---
+  fun isSlotBooked(playgroundId: Int, dateStr: String, slotStr: String): Boolean {
+    return bookings.value.any { booking ->
+      booking.playgroundId == playgroundId &&
+      booking.status != "CANCELLED" &&
+      booking.date.contains(dateStr) &&
+      booking.timeSlot.split(",").map { it.trim() }.contains(slotStr.trim())
+    }
+  }
+
+  fun checkAndScheduleBookingReminders() {
+    viewModelScope.launch {
+      delay(1500) // Brief delay to ensure database flows have loaded
+      val allBookingsList = bookings.value
+      val notificationsList = notifications.value
+      
+      val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+      val now = java.util.Calendar.getInstance()
+      
+      allBookingsList.forEach { booking ->
+        if (booking.status == "CONFIRMED" || booking.status == "PENDING") {
+          val dates = booking.date.split(",").map { it.trim() }
+          val slots = booking.timeSlot.split(",").map { it.trim() }
+          
+          dates.forEach { datePart ->
+            val cleanDate = if (datePart.contains(" ")) datePart.substringBefore(" ") else datePart
+            slots.forEach { slot ->
+              val startTimeStr = slot.substringBefore(" - ").trim()
+              try {
+                val bookingDateTimeStr = "$cleanDate $startTimeStr"
+                val bookingTime = java.util.Calendar.getInstance()
+                bookingTime.time = sdf.parse(bookingDateTimeStr) ?: return@forEach
+                
+                val diffMs = bookingTime.timeInMillis - now.timeInMillis
+                val diffHours = diffMs.toDouble() / (1000 * 60 * 60)
+                
+                // If it starts in less than 6 hours and in the future
+                if (diffHours > 0.0 && diffHours <= 6.0) {
+                  val uniqueTriggerKey = "REM_B${booking.id}_$cleanDate"
+                  val alreadyReminded = notificationsList.any { 
+                    it.messageAr.contains(uniqueTriggerKey) || it.messageEn.contains(uniqueTriggerKey) 
+                  }
+                  
+                  if (!alreadyReminded) {
+                    triggerSystemNotification(
+                      "⏰ تذكير بموعد حجزك لملعب ${booking.playgroundNameAr}",
+                      "كابتن ${booking.captainName}، نود تذكيرك بأن موعد حجزك لملعب ${booking.playgroundNameAr} سيبدأ خلال أقل من 6 ساعات (اليوم عند الساعة $startTimeStr). نتمنى لكم مباراة حماسية! [المعرف: $uniqueTriggerKey]",
+                      "⏰ Booking Reminder: ${booking.playgroundNameEn}",
+                      "Captain ${booking.captainName}, your booking for ${booking.playgroundNameEn} starts in less than 6 hours (today at $startTimeStr). Have a great game! [Ref: $uniqueTriggerKey]",
+                      "BOOKING"
+                    )
+                  }
+                }
+              } catch (e: Exception) {
+                e.printStackTrace()
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // --- Team Management Module Actions ---
+  fun createTeamProfile(teamName: String, cityAr: String, logoEmoji: String, maxMainPlayers: Int = 7) {
+    viewModelScope.launch {
+      val team = Team(
+        leagueId = 0, // 0 means not registered in any league initially
+        teamName = teamName,
+        captainName = userName.ifEmpty { "كابتن سوري" },
+        captainPhone = userPhone,
+        cityAr = cityAr,
+        playersMain = userName.ifEmpty { "كابتن سوري" }, // Captain is automatically added as main player
+        playersSubs = "",
+        logoUri = logoEmoji, // use standard emoji as icon / logo
+        receiptUri = "",
+        maxMainPlayers = maxMainPlayers,
+        whatsappLink = ""
+      )
+      repository.insertTeam(team)
+      triggerSystemNotification(
+        "🛡️ تم إنشاء فريقك الجديد!",
+        "تهانينا! تم إنشاء فريق ($teamName) بنجاح مع تحديد تشكيلة أساسية من $maxMainPlayers لاعبين. يمكنك الآن دعوة لاعبين آخرين وتسجيل الفريق في البطولات والمباريات الودية.",
+        "🛡️ Team Profile Created!",
+        "Congratulations! ($teamName) has been successfully created with a main squad size of $maxMainPlayers. You can now invite players and register for leagues.",
+        "SYSTEM"
+      )
+    }
+  }
+
+  fun updateTeamWhatsAppAndSize(teamId: Int, whatsappLink: String, maxMainPlayers: Int) {
+    viewModelScope.launch {
+      val existing = teams.value.find { it.id == teamId } ?: return@launch
+      val updated = existing.copy(whatsappLink = whatsappLink, maxMainPlayers = maxMainPlayers)
+      repository.updateTeam(updated)
+      triggerSystemNotification(
+        "🛡️ تم تحديث إعدادات الفريق",
+        "تم تحديث رابط واتساب للفريق وتحديد عدد اللاعبين الأساسيين بـ $maxMainPlayers بنجاح.",
+        "🛡️ Team Settings Updated",
+        "WhatsApp group link and main player count ($maxMainPlayers) have been successfully updated.",
+        "SYSTEM"
+      )
+    }
+  }
+
+  fun updateTeamMembers(teamId: Int, mainPlayers: String, subPlayers: String) {
+    viewModelScope.launch {
+      val existing = teams.value.find { it.id == teamId } ?: return@launch
+      val updated = existing.copy(playersMain = mainPlayers, playersSubs = subPlayers)
+      repository.updateTeam(updated)
+      triggerSystemNotification(
+        "🛡️ تم تحديث تشكيلة الفريق",
+        "تم تحديث قائمة اللاعبين الأساسيين والاحتياط لفريقك (${existing.teamName}) بنجاح.",
+        "🛡️ Team Roster Updated",
+        "The roster of main and substitute players for your team (${existing.teamName}) has been updated successfully.",
+        "SYSTEM"
+      )
+    }
+  }
+
+  fun sendTeamInvitation(teamId: Int, teamName: String, inviteePhone: String, inviteeName: String) {
+    viewModelScope.launch {
+      val invitation = TeamInvitation(
+        teamId = teamId,
+        teamName = teamName,
+        captainName = userName,
+        inviteePhone = inviteePhone,
+        inviteeName = inviteeName,
+        status = "PENDING"
+      )
+      repository.insertInvitation(invitation)
+      
+      triggerSystemNotification(
+        "📩 تم إرسال دعوة لاعب",
+        "تم إرسال دعوة بنجاح للاعب $inviteeName للانضمام إلى فريقك ($teamName).",
+        "📩 Player Invitation Sent",
+        "Invitation successfully sent to player $inviteeName to join your team ($teamName).",
+        "SYSTEM"
+      )
+
+      // Notify the system about this invitation
+      triggerSystemNotification(
+        "📩 دعوة جديدة للانضمام لفريق!",
+        "كابتن، لقد تلقيت دعوة من ($userName) للانضمام إلى فريق ($teamName). يرجى الانتقال إلى إدارة الفرق لقبول الطلب.",
+        "📩 New Team Invitation!",
+        "Captain, you received an invitation from ($userName) to join team ($teamName). Accept from Team Management.",
+        "SYSTEM"
+      )
+    }
+  }
+
+  fun acceptInvitation(invitation: TeamInvitation) {
+    viewModelScope.launch {
+      val updatedInv = invitation.copy(status = "ACCEPTED")
+      repository.updateInvitation(updatedInv)
+      
+      val team = teams.value.find { it.id == invitation.teamId }
+      if (team != null) {
+        val currentMain = team.playersMain
+        val newMain = if (currentMain.isEmpty()) invitation.inviteeName else "$currentMain، ${invitation.inviteeName}"
+        val updatedTeam = team.copy(playersMain = newMain)
+        repository.updateTeam(updatedTeam)
+        
+        triggerSystemNotification(
+          "✅ تم قبول الدعوة",
+          "لقد قبلت بنجاح الانضمام لفريق (${team.teamName}). مرحباً بك في الفريق الجديد!",
+          "✅ Invitation Accepted",
+          "You have successfully joined team (${team.teamName}). Welcome to the team!",
+          "SYSTEM"
+        )
+
+        // Notify team captain
+        triggerSystemNotification(
+          "🏃 انضم لاعب جديد لفريقك!",
+          "أهلاً كابتن، لقد قبل اللاعب (${invitation.inviteeName}) دعوتك وانضم رسمياً لفريقك (${team.teamName}).",
+          "🏃 Player Joined your Team!",
+          "Captain, player (${invitation.inviteeName}) accepted your invitation and joined (${team.teamName}).",
+          "SYSTEM"
+        )
+      }
+    }
+  }
+
+  fun rejectInvitation(invitation: TeamInvitation) {
+    viewModelScope.launch {
+      val updatedInv = invitation.copy(status = "REJECTED")
+      repository.updateInvitation(updatedInv)
+      triggerSystemNotification(
+        "❌ تم رفض الدعوة",
+        "لقد قمت برفض الدعوة المقدمة للانضمام لفريق (${invitation.teamName}).",
+        "❌ Invitation Rejected",
+        "You have rejected the invitation to join team (${invitation.teamName}).",
+        "SYSTEM"
+      )
+    }
+  }
+
+  fun registerTeamForLeague(team: Team, league: League) {
+    viewModelScope.launch {
+      val updatedTeam = team.copy(leagueId = league.id)
+      repository.updateTeam(updatedTeam)
+      
+      triggerSystemNotification(
+        "🏆 تم تسجيل فريقك بالدوري!",
+        "تم تسجيل فريقك (${team.teamName}) في دوري (${league.nameAr}) بنجاح. نتمنى لكم تحقيق البطولة!",
+        "🏆 League Registration Confirmed!",
+        "Your team (${team.teamName}) has been registered in (${league.nameEn}) successfully. Good luck!",
+        "LEAGUE"
+      )
+    }
+  }
+
+  fun registerTeamForFriendlyMatch(team: Team, match: FriendlyMatch) {
+    viewModelScope.launch {
+      val updatedMatch = match.copy(
+        opponentTeam = team.teamName,
+        opponentTeamEn = team.teamName,
+        playersRegistered = match.playersRegistered + 1,
+        status = "JOINED"
+      )
+      repository.updateMatch(updatedMatch)
+      
+      triggerSystemNotification(
+        "🤝 تم تأكيد المباراة الودية!",
+        "تم قبول المواجهة وتحدي فريق (${match.hostTeam}) ودياً من قبل فريقك (${team.teamName}). جهزوا تشكيلتكم!",
+        "🤝 Friendly Match Accepted!",
+        "Your team (${team.teamName}) accepted the friendly match against (${match.hostTeam})!",
+        "FRIENDLY"
+      )
+
+      triggerSystemNotification(
+        "🤝 حجز مواجهة ودية جديدة لمباراتك!",
+        "كابتن، لقد قبل فريق (${team.teamName}) تحديك الودي لملعب ${match.playgroundName} في تاريخ ${match.dateStr}. تواصل مع الكابتن للتنسيق: ${team.captainPhone}.",
+        "🤝 Friendly Challenge Accepted!",
+        "Captain, (${team.teamName}) accepted your friendly match challenge! Contact captain at: ${team.captainPhone}.",
+        "FRIENDLY"
+      )
+    }
+  }
+
+  // --- Home Banners Management Operations ---
+  fun addNewBanner(banner: HomeBanner) {
+    viewModelScope.launch {
+      repository.insertBanner(banner)
+    }
+  }
+
+  fun updateBanner(banner: HomeBanner) {
+    viewModelScope.launch {
+      repository.updateBanner(banner)
+    }
+  }
+
+  fun deleteBanner(banner: HomeBanner) {
+    viewModelScope.launch {
+      repository.deleteBanner(banner)
     }
   }
 }

@@ -15,9 +15,12 @@ import androidx.room.RoomDatabase
     Academy::class,
     AcademyRegistration::class,
     PlayerCard::class,
-    Notification::class
+    Notification::class,
+    User::class,
+    TeamInvitation::class,
+    HomeBanner::class
   ],
-  version = 1,
+  version = 6,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +33,9 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun academyRegistrationDao(): AcademyRegistrationDao
   abstract fun playerCardDao(): PlayerCardDao
   abstract fun notificationDao(): NotificationDao
+  abstract fun userDao(): UserDao
+  abstract fun teamInvitationDao(): TeamInvitationDao
+  abstract fun homeBannerDao(): HomeBannerDao
 
   companion object {
     @Volatile

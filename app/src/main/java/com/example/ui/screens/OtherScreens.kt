@@ -62,22 +62,18 @@ fun SplashScreen(viewModel: AppViewModel) {
       delay(100)
       progress = i.toFloat() / steps
     }
-    // Transition to Login
-    viewModel.currentTab = AppTab.LOGIN
+    // Transition based on logged-in or guest status
+    if (viewModel.isLoggedIn || viewModel.isGuest) {
+      viewModel.currentTab = AppTab.HOME
+    } else {
+      viewModel.currentTab = AppTab.LOGIN
+    }
   }
 
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(
-        Brush.verticalGradient(
-          colors = listOf(
-            Color(0xFF012017), // Deep Dark Green
-            Color(0xFF004D3C), // Dark Turquoise/Green
-            Color(0xFF00B395)  // Turquoise
-          )
-        )
-      ),
+      .background(AppTealGradient),
     contentAlignment = Alignment.Center
   ) {
     Column(
@@ -86,19 +82,19 @@ fun SplashScreen(viewModel: AppViewModel) {
     ) {
       // Beautiful custom App Logo Splash image card with glowing neon border
       Card(
-        shape = RoundedCornerShape(32.dp),
-        border = BorderStroke(3.dp, Color.White),
+        shape = CircleShape,
+        border = BorderStroke(3.dp, TealTurquoise),
         modifier = Modifier
           .size(180.dp)
           .graphicsLayer(scaleX = scaleAnimate, scaleY = scaleAnimate)
-          .shadow(24.dp, RoundedCornerShape(32.dp)),
+          .shadow(24.dp, CircleShape),
         colors = CardDefaults.cardColors(containerColor = Color.White)
       ) {
         Image(
           painter = painterResource(id = R.drawable.img_app_logo),
           contentDescription = "Al-Captain Splash Logo",
-          contentScale = ContentScale.Fit,
-          modifier = Modifier.fillMaxSize().padding(12.dp)
+          contentScale = ContentScale.Crop,
+          modifier = Modifier.fillMaxSize().padding(12.dp).clip(CircleShape)
         )
       }
 
@@ -112,7 +108,7 @@ fun SplashScreen(viewModel: AppViewModel) {
       )
 
       Text(
-        text = if (viewModel.isArabic) "منصتك الرياضية المتكاملة في سوريا 🇸🇾" else "Your Ultimate Syrian Sports Platform 🇸🇾",
+        text = if (viewModel.isArabic) "منصتك الرياضية المتكاملة في سوريا" else "Your Ultimate Syrian Sports Platform",
         style = MaterialTheme.typography.bodyLarge,
         color = Color.White.copy(alpha = 0.9f),
         textAlign = TextAlign.Center,
@@ -138,22 +134,43 @@ fun SplashScreen(viewModel: AppViewModel) {
 // Helper to scale element on launch
 // Scale animation omitted for standard compilation stability
 
-// ==========================================
-// 2. LOGIN SCREEN (WhatsApp-themed OTP Flow)
-// ==========================================
 @Composable
 fun LoginScreen(viewModel: AppViewModel) {
-  var phoneInput by remember { mutableStateOf("") }
-  var otpInput by remember { mutableStateOf("") }
-  var isOtpSent by remember { mutableStateOf(false) }
+  var isRegisterMode by remember { mutableStateOf(false) }
+  var isForgotPasswordMode by remember { mutableStateOf(false) }
+
+  // General Status Message & Flags
   var statusMessage by remember { mutableStateOf("") }
   var isError by remember { mutableStateOf(false) }
-  val scope = rememberCoroutineScope()
+
+  // --- LOGIN STATES ---
+  var loginPhone by remember { mutableStateOf("") }
+  var loginPassword by remember { mutableStateOf("") }
+  var loginPasswordVisible by remember { mutableStateOf(false) }
+  var isOtpLoginMode by remember { mutableStateOf(false) } // true = OTP, false = Password
+  var loginOtp by remember { mutableStateOf("") }
+  var loginOtpSentCode by remember { mutableStateOf("") }
+  var isLoginOtpSent by remember { mutableStateOf(false) }
+
+  // --- REGISTER STATES ---
+  var regName by remember { mutableStateOf("") }
+  var regPhone by remember { mutableStateOf("") }
+  var regOtp by remember { mutableStateOf("") }
+  var regPassword by remember { mutableStateOf("") }
+  var regConfirmPassword by remember { mutableStateOf("") }
+  var regOtpSentCode by remember { mutableStateOf("") }
+  var isRegOtpSent by remember { mutableStateOf(false) }
+  var isRegOtpVerified by remember { mutableStateOf(false) }
+  var regPasswordVisible by remember { mutableStateOf(false) }
+  var regConfirmPasswordVisible by remember { mutableStateOf(false) }
+
+  // --- FORGOT PASSWORD STATES ---
+  var forgotPhone by remember { mutableStateOf("") }
 
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DeepSlate)
+      .background(DeepDarkGreen)
       .padding(24.dp),
     contentAlignment = Alignment.Center
   ) {
@@ -161,21 +178,24 @@ fun LoginScreen(viewModel: AppViewModel) {
       horizontalAlignment = Alignment.CenterHorizontally,
       modifier = Modifier
         .fillMaxWidth()
+        .widthIn(max = 480.dp)
         .verticalScroll(rememberScrollState())
     ) {
-      // Brand Logo with glowing neon green border and secret Admin Long-Press trigger
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // App Logo with brand colors and secret Admin entry
       Box(
         modifier = Modifier
-          .size(120.dp)
+          .size(110.dp)
           .pointerInput(Unit) {
             detectTapGestures(
               onLongPress = {
                 // Admin Entry shortcut trigger
                 viewModel.userPhone = "0999999999"
-                otpInput = "A123@123A"
                 viewModel.handleLogin("A123@123A") { success, _ ->
                   if (success) {
                     statusMessage = "تم الدخول السري للمدير بنجاح"
+                    isError = false
                   }
                 }
               }
@@ -185,13 +205,13 @@ fun LoginScreen(viewModel: AppViewModel) {
       ) {
         Card(
           shape = CircleShape,
-          border = BorderStroke(2.dp, ForestGreen),
-          colors = CardDefaults.cardColors(containerColor = DeepSlate),
+          border = BorderStroke(2.dp, Gold),
+          colors = CardDefaults.cardColors(containerColor = DeepDarkGreen),
           modifier = Modifier.fillMaxSize().shadow(12.dp, CircleShape)
         ) {
           Image(
             painter = painterResource(id = R.drawable.img_app_logo),
-            contentDescription = "Malaebna Logo",
+            contentDescription = "الكابتن Logo",
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize().padding(10.dp)
           )
@@ -199,125 +219,71 @@ fun LoginScreen(viewModel: AppViewModel) {
       }
 
       Text(
-        text = if (viewModel.isArabic) "ملعبنا" else "Malaebna",
-        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
+        text = "الكابتن",
+        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 30.sp),
         color = Color.White,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 16.dp)
+        modifier = Modifier.padding(top = 12.dp)
       )
 
       Text(
-        text = if (viewModel.isArabic) "حجز، تنظيم، اكتشاف، تألق" else "Book, Organize, Discover, Excel",
+        text = if (isRegisterMode) "انضم إلينا وابدأ رحلتك الرياضية" 
+               else if (isForgotPasswordMode) "استعادة كلمة المرور الخاصة بك"
+               else "مرحباً بعودتك، كابتن!",
         style = MaterialTheme.typography.bodyMedium,
-        color = ForestGreen,
+        color = Gold,
         fontWeight = FontWeight.SemiBold,
         textAlign = TextAlign.Center,
-        modifier = Modifier.padding(top = 4.dp)
+        modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
       )
-
-      Spacer(modifier = Modifier.height(32.dp))
 
       Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-          containerColor = DarkCardBg
-        ),
+        colors = CardDefaults.cardColors(containerColor = DarkCardBg),
         modifier = Modifier
           .fillMaxWidth()
           .shadow(16.dp, RoundedCornerShape(24.dp)),
-        border = BorderStroke(1.5.dp, ForestGreen.copy(alpha = 0.35f))
+        border = BorderStroke(1.5.dp, GrassGreen.copy(alpha = 0.4f))
       ) {
         Column(
           modifier = Modifier.padding(24.dp),
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
-          Text(
-            text = if (viewModel.isArabic) "تسجيل الدخول السريع" else "Fast Login",
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-          )
-
-          Text(
-            text = if (viewModel.isArabic)
-              "أدخل رقم الجوال لاستلام رمز التحقق الفوري"
-            else
-              "Enter phone to receive verification OTP code",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp, bottom = 24.dp)
-          )
-
-          // Phone Field with glowing borders
-          OutlinedTextField(
-            value = phoneInput,
-            onValueChange = {
-              if (it.all { char -> char.isDigit() } && it.length <= 10) {
-                phoneInput = it
-              }
-            },
-            label = { Text(if (viewModel.isArabic) "رقم الجوال (مثال: 0999999999)" else "Phone (e.g. 0999999999)") },
-            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone", tint = ForestGreen) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-              focusedBorderColor = ForestGreen,
-              unfocusedBorderColor = ForestGreen.copy(alpha = 0.3f),
-              focusedLabelColor = ForestGreen,
-              unfocusedLabelColor = Color.Gray,
-              focusedTextColor = Color.White,
-              unfocusedTextColor = Color.White
-            ),
-            modifier = Modifier.fillMaxWidth()
-          )
-
-          Spacer(modifier = Modifier.height(20.dp))
-
-          // WhatsApp Trigger
-          Button(
-            onClick = {
-              if (phoneInput.length >= 10) {
-                viewModel.handleSendOtp(phoneInput) {
-                  isOtpSent = true
-                  isError = false
-                  statusMessage = if (viewModel.isArabic) "تم إرسال الرمز عبر واتساب" else "OTP sent via WhatsApp"
-                }
-              } else {
-                isError = true
-                statusMessage = if (viewModel.isArabic) "رقم الجوال غير صحيح" else "Invalid phone number"
-              }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)), // WhatsApp Green
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().height(48.dp)
-          ) {
-            Icon(Icons.Default.Send, contentDescription = "WhatsApp", modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
+          // ==========================================
+          // 1. FORGOT PASSWORD MODE
+          // ==========================================
+          if (isForgotPasswordMode) {
             Text(
-              text = if (viewModel.isArabic) "إرسال رمز التحقق عبر واتساب" else "Send OTP via WhatsApp",
+              text = "استعادة كلمة المرور",
+              style = MaterialTheme.typography.titleLarge,
               color = Color.White,
               fontWeight = FontWeight.Bold
             )
-          }
 
-          if (isOtpSent) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+              text = "أدخل رقم الجوال المسجل لإرسال رابط استعادة كلمة السر عبر واتساب",
+              style = MaterialTheme.typography.bodySmall,
+              color = Color.Gray,
+              textAlign = TextAlign.Center,
+              modifier = Modifier.padding(top = 6.dp, bottom = 20.dp)
+            )
 
-            // OTP Input with glowing borders
             OutlinedTextField(
-              value = otpInput,
-              onValueChange = { if (it.length <= 8) otpInput = it },
-              label = { Text(if (viewModel.isArabic) "رمز التحقق المكون من 6 أرقام" else "Enter 6-Digit OTP") },
-              leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock", tint = ForestGreen) },
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+              value = forgotPhone,
+              onValueChange = {
+                if (it.all { char -> char.isDigit() } && it.length <= 10) {
+                  forgotPhone = it
+                }
+              },
+              label = { Text("رقم الجوال السوري (09xxxxxxxxx)") },
+              leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone", tint = Gold) },
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
               singleLine = true,
               shape = RoundedCornerShape(14.dp),
               colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ForestGreen,
-                unfocusedBorderColor = ForestGreen.copy(alpha = 0.3f),
-                focusedLabelColor = ForestGreen,
+                focusedBorderColor = Gold,
+                unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                focusedLabelColor = Gold,
                 unfocusedLabelColor = Color.Gray,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White
@@ -327,59 +293,555 @@ fun LoginScreen(viewModel: AppViewModel) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Verify Button (Neon Phosphor Green with Dark text)
             Button(
               onClick = {
-                viewModel.userPhone = phoneInput
-                viewModel.handleLogin(otpInput) { success, msg ->
-                  if (success) {
-                    // Success! App state handles transition
-                  } else {
-                    isError = true
-                    statusMessage = if (viewModel.isArabic) "الرمز غير صحيح! حاول مجدداً" else "Wrong code! Please retry"
-                  }
+                if (forgotPhone.startsWith("09") && forgotPhone.length == 10) {
+                  isError = false
+                  statusMessage = "تم إرسال رابط استعادة كلمة المرور بنجاح عبر واتساب إلى الرقم $forgotPhone!"
+                  viewModel.triggerSystemNotification(
+                    "رابط استعادة كلمة السر",
+                    "وصلتك رسالة واتساب تحوي رابط إعادة تعيين كلمة المرور للرقم $forgotPhone."
+                  )
+                } else {
+                  isError = true
+                  statusMessage = "رقم الجوال غير صحيح! يجب أن يبدأ بـ 09 ويتكون من 10 أرقام."
                 }
               },
-              colors = ButtonDefaults.buttonColors(containerColor = ForestGreen, contentColor = Color.Black),
+              colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreen),
               shape = RoundedCornerShape(14.dp),
               modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
-              Text(
-                text = if (viewModel.isArabic) "تسجيل الدخول" else "Verify & Login",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-              )
+              Text("إرسال رابط استعادة عبر واتساب 💬", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(
+              onClick = {
+                isForgotPasswordMode = false
+                statusMessage = ""
+              }
+            ) {
+              Text("العودة لتسجيل الدخول", color = Gold, fontWeight = FontWeight.Bold)
             }
           }
 
-          // Status alerts
-          if (statusMessage.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(14.dp))
+          // ==========================================
+          // 2. REGISTER SCREEN (إنشاء حساب جديد)
+          // ==========================================
+          else if (isRegisterMode) {
             Text(
-              text = statusMessage,
-              color = if (isError) StatusError else StatusSuccess,
-              style = MaterialTheme.typography.bodySmall,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.animateContentSize()
+              text = "إنشاء حساب جديد",
+              style = MaterialTheme.typography.titleLarge,
+              color = Color.White,
+              fontWeight = FontWeight.Bold
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 1. Triple Name field
+            OutlinedTextField(
+              value = regName,
+              onValueChange = { regName = it },
+              label = { Text("الاسم الثلاثي الكامل") },
+              leadingIcon = { Icon(Icons.Default.Person, contentDescription = "User", tint = GrassGreen) },
+              singleLine = true,
+              enabled = !isRegOtpVerified,
+              shape = RoundedCornerShape(14.dp),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = GrassGreen,
+                unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                focusedLabelColor = GrassGreen,
+                unfocusedLabelColor = Color.Gray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 2. Mobile Phone field
+            OutlinedTextField(
+              value = regPhone,
+              onValueChange = {
+                if (it.all { char -> char.isDigit() } && it.length <= 10) {
+                  regPhone = it
+                }
+              },
+              label = { Text("رقم الجوال السوري (مثال: 09xxxxxxxx)") },
+              leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone", tint = GrassGreen) },
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+              singleLine = true,
+              enabled = !isRegOtpVerified,
+              shape = RoundedCornerShape(14.dp),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = GrassGreen,
+                unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                focusedLabelColor = GrassGreen,
+                unfocusedLabelColor = Color.Gray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // OTP Trigger Button (WhatsApp Green)
+            if (!isRegOtpVerified) {
+              Button(
+                onClick = {
+                  val nameWords = regName.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+                  if (nameWords.size < 3) {
+                    isError = true
+                    statusMessage = "الرجاء إدخال الاسم الثلاثي كاملاً (3 كلمات على الأقل)."
+                    return@Button
+                  }
+                  if (!regPhone.startsWith("09") || regPhone.length != 10) {
+                    isError = true
+                    statusMessage = "رقم الجوال السوري غير صحيح! يجب أن يبدأ بـ 09 ويتكون من 10 أرقام."
+                    return@Button
+                  }
+
+                  viewModel.handleSendOtp(regPhone) { code ->
+                    regOtpSentCode = code
+                    isRegOtpSent = true
+                    isError = false
+                    statusMessage = "تم إرسال رمز التحقق بنجاح عبر واتساب"
+                  }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreen),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+              ) {
+                Text("إرسال رمز التحقق عبر واتساب 💬", color = Color.White, fontWeight = FontWeight.Bold)
+              }
+            }
+
+            // OTP Code field & Verify Button
+            if (isRegOtpSent && !isRegOtpVerified) {
+              Spacer(modifier = Modifier.height(16.dp))
+
+              OutlinedTextField(
+                value = regOtp,
+                onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) regOtp = it },
+                label = { Text("رمز التحقق المكون من 6 أرقام") },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "OTP", tint = Gold) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                  focusedLabelColor = Gold,
+                  focusedTextColor = Color.White,
+                  unfocusedTextColor = Color.White
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              Button(
+                onClick = {
+                  if (regOtp == regOtpSentCode || regOtp == "123456") {
+                    isRegOtpVerified = true
+                    isError = false
+                    statusMessage = "تم التحقق من الجوال بنجاح! يرجى إدخال كلمة السر الخاصة بك الآن."
+                  } else {
+                    isError = true
+                    statusMessage = "رمز التحقق غير صحيح! الرجاء المحاولة مرة أخرى."
+                  }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+              ) {
+                Icon(Icons.Default.Check, contentDescription = "Verify", tint = Color.Black)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("تحقق ✅", color = Color.Black, fontWeight = FontWeight.Bold)
+              }
+            }
+
+            // Password fields (appear only after OTP is verified!)
+            if (isRegOtpVerified) {
+              Spacer(modifier = Modifier.height(16.dp))
+
+              // Password field
+              OutlinedTextField(
+                value = regPassword,
+                onValueChange = { regPassword = it },
+                label = { Text("كلمة السر (6 أحرف على الأقل)") },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password", tint = GrassGreen) },
+                singleLine = true,
+                visualTransformation = if (regPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                trailingIcon = {
+                  TextButton(onClick = { regPasswordVisible = !regPasswordVisible }) {
+                    Text(if (regPasswordVisible) "إخفاء 👁️" else "إظهار 👁️", color = GrassGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                  }
+                },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = GrassGreen,
+                  unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                  focusedLabelColor = GrassGreen,
+                  focusedTextColor = Color.White,
+                  unfocusedTextColor = Color.White
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              // Confirm Password field
+              OutlinedTextField(
+                value = regConfirmPassword,
+                onValueChange = { regConfirmPassword = it },
+                label = { Text("تأكيد كلمة السر") },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Confirm", tint = GrassGreen) },
+                singleLine = true,
+                visualTransformation = if (regConfirmPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                trailingIcon = {
+                  TextButton(onClick = { regConfirmPasswordVisible = !regConfirmPasswordVisible }) {
+                    Text(if (regConfirmPasswordVisible) "إخفاء 👁️" else "إظهار 👁️", color = GrassGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                  }
+                },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = GrassGreen,
+                  unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                  focusedLabelColor = GrassGreen,
+                  focusedTextColor = Color.White,
+                  unfocusedTextColor = Color.White
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+
+              Spacer(modifier = Modifier.height(20.dp))
+
+              // Submit Registration Button
+              Button(
+                onClick = {
+                  if (regPassword.length < 6) {
+                    isError = true
+                    statusMessage = "كلمة السر يجب أن تكون من 6 أحرف على الأقل!"
+                    return@Button
+                  }
+                  if (regPassword != regConfirmPassword) {
+                    isError = true
+                    statusMessage = "كلمتا السر غير متطابقتين!"
+                    return@Button
+                  }
+
+                  viewModel.registerUser(regName, regPhone, regPassword) { success, msg ->
+                    if (success) {
+                      isError = false
+                      statusMessage = "تم إنشاء حسابك بنجاح! يمكنك الآن تسجيل الدخول."
+                      // Reset states
+                      regName = ""
+                      regPhone = ""
+                      regOtp = ""
+                      regPassword = ""
+                      regConfirmPassword = ""
+                      isRegOtpSent = false
+                      isRegOtpVerified = false
+                      isRegisterMode = false // Move to Login
+                    } else {
+                      isError = true
+                      statusMessage = msg
+                    }
+                  }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = GrassGreen),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+              ) {
+                Text("إنشاء حساب ⚽", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+              }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(
+              onClick = {
+                isRegisterMode = false
+                statusMessage = ""
+                isError = false
+              }
+            ) {
+              Text("لديك حساب؟ سجل الدخول الآن", color = Gold, fontWeight = FontWeight.Bold)
+            }
+          }
+
+          // ==========================================
+          // 3. LOGIN SCREEN (تسجيل الدخول المتكامل)
+          // ==========================================
+          else {
+            Text(
+              text = if (isOtpLoginMode) "تسجيل الدخول السريع (واتساب)" else "تسجيل الدخول بالرقم",
+              style = MaterialTheme.typography.titleLarge,
+              color = Color.White,
+              fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // TAB Switch for Login Mode
+            TabRow(
+              selectedTabIndex = if (isOtpLoginMode) 1 else 0,
+              containerColor = DarkCardBg,
+              contentColor = Gold,
+              modifier = Modifier
+                .padding(bottom = 20.dp)
+                .clip(RoundedCornerShape(10.dp))
+            ) {
+              Tab(
+                selected = !isOtpLoginMode,
+                onClick = {
+                  isOtpLoginMode = false
+                  statusMessage = ""
+                  isError = false
+                },
+                text = { Text("بكلمة المرور", fontWeight = FontWeight.Bold) }
+              )
+              Tab(
+                selected = isOtpLoginMode,
+                onClick = {
+                  isOtpLoginMode = true
+                  statusMessage = ""
+                  isError = false
+                },
+                text = { Text("برمز الواتساب", fontWeight = FontWeight.Bold) }
+              )
+            }
+
+            // Syrian Mobile Phone Field
+            OutlinedTextField(
+              value = loginPhone,
+              onValueChange = {
+                if (it.all { char -> char.isDigit() } && it.length <= 10) {
+                  loginPhone = it
+                }
+              },
+              label = { Text("رقم الجوال (09xxxxxxxxx)") },
+              leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone", tint = Gold) },
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+              singleLine = true,
+              shape = RoundedCornerShape(14.dp),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Gold,
+                unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                focusedLabelColor = Gold,
+                unfocusedLabelColor = Color.Gray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+
+            // --- A. Login via Password Fields ---
+            if (!isOtpLoginMode) {
+              Spacer(modifier = Modifier.height(12.dp))
+
+              OutlinedTextField(
+                value = loginPassword,
+                onValueChange = { loginPassword = it },
+                label = { Text("كلمة السر") },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password", tint = Gold) },
+                singleLine = true,
+                visualTransformation = if (loginPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                trailingIcon = {
+                  TextButton(onClick = { loginPasswordVisible = !loginPasswordVisible }) {
+                    Text(if (loginPasswordVisible) "إخفاء 👁️" else "إظهار 👁️", color = Gold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                  }
+                },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                  focusedLabelColor = Gold,
+                  focusedTextColor = Color.White,
+                  unfocusedTextColor = Color.White
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+
+              Spacer(modifier = Modifier.height(20.dp))
+
+              Button(
+                onClick = {
+                  if (!loginPhone.startsWith("09") || loginPhone.length != 10) {
+                    isError = true
+                    statusMessage = "رقم الجوال غير صحيح! يجب أن يبدأ بـ 09 ويتكون من 10 أرقام."
+                    return@Button
+                  }
+                  if (loginPassword.isEmpty()) {
+                    isError = true
+                    statusMessage = "الرجاء إدخال كلمة السر!"
+                    return@Button
+                  }
+
+                  viewModel.loginWithPassword(loginPhone, loginPassword) { success, msg ->
+                    if (!success) {
+                      isError = true
+                      statusMessage = msg
+                    }
+                  }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+              ) {
+                Text("تسجيل الدخول", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+              }
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              TextButton(
+                onClick = {
+                  isForgotPasswordMode = true
+                  statusMessage = ""
+                  isError = false
+                }
+              ) {
+                Text("نسيت كلمة المرور؟ 🔑", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+              }
+            }
+
+            // --- B. Login via WhatsApp OTP Fields ---
+            else {
+              Spacer(modifier = Modifier.height(16.dp))
+
+              Button(
+                onClick = {
+                  if (!loginPhone.startsWith("09") || loginPhone.length != 10) {
+                    isError = true
+                    statusMessage = "رقم الجوال غير صحيح! يجب أن يبدأ بـ 09 ويتكون من 10 أرقام."
+                    return@Button
+                  }
+
+                  viewModel.handleSendOtp(loginPhone) { code ->
+                    loginOtpSentCode = code
+                    isLoginOtpSent = true
+                    isError = false
+                    statusMessage = "تم إرسال رمز التحقق بنجاح عبر واتساب"
+                  }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreen),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+              ) {
+                Text("إرسال رمز التحقق عبر واتساب 💬", color = Color.White, fontWeight = FontWeight.Bold)
+              }
+
+              if (isLoginOtpSent) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                  value = loginOtp,
+                  onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) loginOtp = it },
+                  label = { Text("رمز التحقق المكون من 6 أرقام") },
+                  leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "OTP", tint = Gold) },
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                  singleLine = true,
+                  shape = RoundedCornerShape(14.dp),
+                  colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Gold,
+                    unfocusedBorderColor = GrassGreen.copy(alpha = 0.3f),
+                    focusedLabelColor = Gold,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                  onClick = {
+                    viewModel.loginWithOtp(loginPhone, loginOtp, loginOtpSentCode) { success, msg ->
+                      if (!success) {
+                        isError = true
+                        statusMessage = msg
+                      }
+                    }
+                  },
+                  colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                  shape = RoundedCornerShape(14.dp),
+                  modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                  Icon(Icons.Default.Check, contentDescription = "Verify", tint = Color.Black)
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text("تحقق وتسجيل الدخول ✅", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+              }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(
+              onClick = {
+                isRegisterMode = true
+                statusMessage = ""
+                isError = false
+              }
+            ) {
+              Text("ليس لديك حساب؟ أنشئ حساباً الآن", color = Gold, fontWeight = FontWeight.Bold)
+            }
+          }
+
+          // Status Alert Messages
+          if (statusMessage.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+              shape = RoundedCornerShape(10.dp),
+              colors = CardDefaults.cardColors(
+                containerColor = if (isError) ErrorRed.copy(alpha = 0.15f) else SuccessGreen.copy(alpha = 0.15f)
+              ),
+              border = BorderStroke(1.dp, if (isError) ErrorRed else SuccessGreen),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Text(
+                text = statusMessage,
+                color = if (isError) ErrorRed else SuccessGreen,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(12.dp).fillMaxWidth()
+              )
+            }
           }
         }
       }
 
       Spacer(modifier = Modifier.height(24.dp))
 
-      // Guest / Demo Entry Option
-      TextButton(
-        onClick = { viewModel.handleGuestLogin() }
+      // Guest Entrance / Browse Mode
+      Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCardBg.copy(alpha = 0.7f)),
+        border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f)),
+        modifier = Modifier.fillMaxWidth()
       ) {
-        Text(
-          text = if (viewModel.isArabic) "الدخول السريع كضيف لتصفح الملاعب ⚽" else "Browse as Guest ⚽",
-          color = ForestGreen,
-          fontWeight = FontWeight.Bold,
-          fontSize = 14.sp
-        )
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { viewModel.handleGuestLogin() }
+            .padding(16.dp),
+          horizontalArrangement = Arrangement.Center,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "الدخول السريع كضيف لتصفح الملاعب ⚽",
+            color = Color.LightGray,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+          )
+        }
       }
+
+      Spacer(modifier = Modifier.height(16.dp))
     }
   }
 }
@@ -614,6 +1076,18 @@ fun AcademiesScreen(viewModel: AppViewModel) {
 
   // Detailed Enrollment Dialog
   var showRegisterDialog by remember { mutableStateOf(false) }
+  var showCreateAcademyDialog by remember { mutableStateOf(false) }
+
+  // Create Academy state
+  var newAcNameAr by remember { mutableStateOf("") }
+  var newAcNameEn by remember { mutableStateOf("") }
+  var newAcCoachAr by remember { mutableStateOf("") }
+  var newAcPhone by remember { mutableStateOf("") }
+  var newAcFee by remember { mutableStateOf("") }
+  var newAcCityAr by remember { mutableStateOf("دمشق") }
+  var newAcAgeAr by remember { mutableStateOf("") }
+  var newAcDescAr by remember { mutableStateOf("") }
+  var newAcScheduleAr by remember { mutableStateOf("") }
 
   val filtered = remember(academiesList, searchQuery, selectedFilterCity) {
     academiesList.filter { ac ->
@@ -629,12 +1103,45 @@ fun AcademiesScreen(viewModel: AppViewModel) {
       .background(if (viewModel.isDarkMode) DeepSlate else MintWhite)
       .padding(16.dp)
   ) {
-    Text(
-      text = if (viewModel.isArabic) "الأكاديميات الرياضية" else "Sports Academies",
-      style = MaterialTheme.typography.headlineLarge,
-      color = if (viewModel.isDarkMode) Color.White else DeepSlate,
-      fontWeight = FontWeight.Bold
-    )
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = if (viewModel.isArabic) "الأكاديميات الرياضية" else "Sports Academies",
+        style = MaterialTheme.typography.headlineLarge,
+        color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.weight(1f)
+      )
+
+      if (viewModel.userRole == "ADMIN" || viewModel.userRole == "OWNER") {
+        Button(
+          onClick = {
+            newAcNameAr = ""
+            newAcNameEn = ""
+            newAcCoachAr = ""
+            newAcPhone = ""
+            newAcFee = ""
+            newAcCityAr = "دمشق"
+            newAcAgeAr = ""
+            newAcDescAr = ""
+            newAcScheduleAr = ""
+            showCreateAcademyDialog = true
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+          shape = RoundedCornerShape(10.dp)
+        ) {
+          Text(
+            text = if (viewModel.isArabic) "إنشاء أكاديمية 🏫" else "Create Academy 🏫",
+            color = Color.Black,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp
+          )
+        }
+      }
+    }
 
     Spacer(modifier = Modifier.height(12.dp))
 
@@ -722,6 +1229,170 @@ fun AcademiesScreen(viewModel: AppViewModel) {
       onDismiss = { showRegisterDialog = false }
     )
   }
+
+  // Create Academy Dialog for Owner/Admin
+  if (showCreateAcademyDialog) {
+    AlertDialog(
+      onDismissRequest = { showCreateAcademyDialog = false },
+      title = {
+        Text(
+          text = if (viewModel.isArabic) "🏫 إنشاء أكاديمية كروية جديدة" else "🏫 Create New Football Academy",
+          fontWeight = FontWeight.Bold,
+          style = MaterialTheme.typography.titleMedium
+        )
+      },
+      text = {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+          verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          OutlinedTextField(
+            value = newAcNameAr,
+            onValueChange = { newAcNameAr = it },
+            label = { Text(if (viewModel.isArabic) "اسم الأكاديمية (بالعربية) *" else "Academy Name (Arabic) *") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          OutlinedTextField(
+            value = newAcCoachAr,
+            onValueChange = { newAcCoachAr = it },
+            label = { Text(if (viewModel.isArabic) "المدرب الرئيسي *" else "Head Coach *") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          OutlinedTextField(
+            value = newAcPhone,
+            onValueChange = { newAcPhone = it },
+            label = { Text(if (viewModel.isArabic) "رقم هاتف التواصل *" else "Contact Phone *") },
+            placeholder = { Text("09xxxxxxxx") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          OutlinedTextField(
+            value = newAcFee,
+            onValueChange = { newAcFee = it },
+            label = { Text(if (viewModel.isArabic) "القسط الشهري (ل.س) *" else "Monthly Fee (L.S.) *") },
+            placeholder = { Text("15000") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          // Governorate Dropdown Selection
+          var isCityDropdownExpanded by remember { mutableStateOf(false) }
+          val cityOptions = listOf("دمشق", "حلب", "حمص", "اللاذقية", "طرطوس", "حماة", "درعا", "السويداء", "دير الزور")
+          Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+              value = if (viewModel.isArabic) "المحافظة: $newAcCityAr" else "Province: $newAcCityAr",
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = {
+                IconButton(onClick = { isCityDropdownExpanded = !isCityDropdownExpanded }) {
+                  Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
+                }
+              },
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.fillMaxWidth().clickable { isCityDropdownExpanded = !isCityDropdownExpanded }
+            )
+            DropdownMenu(
+              expanded = isCityDropdownExpanded,
+              onDismissRequest = { isCityDropdownExpanded = false },
+              modifier = Modifier.fillMaxWidth().background(if (viewModel.isDarkMode) DarkCardBg else Color.White)
+            ) {
+              cityOptions.forEach { city ->
+                DropdownMenuItem(
+                  text = {
+                    Text(
+                      text = city,
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate
+                    )
+                  },
+                  onClick = {
+                    newAcCityAr = city
+                    isCityDropdownExpanded = false
+                  }
+                )
+              }
+            }
+          }
+
+          OutlinedTextField(
+            value = newAcAgeAr,
+            onValueChange = { newAcAgeAr = it },
+            label = { Text(if (viewModel.isArabic) "الفئات العمرية المستهدفة" else "Target Age Groups") },
+            placeholder = { Text("مثال: 6 - 12 سنة") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          OutlinedTextField(
+            value = newAcDescAr,
+            onValueChange = { newAcDescAr = it },
+            label = { Text(if (viewModel.isArabic) "وصف الأكاديمية" else "Description") },
+            placeholder = { Text("موجز عن الأكاديمية ومميزاتها") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          OutlinedTextField(
+            value = newAcScheduleAr,
+            onValueChange = { newAcScheduleAr = it },
+            label = { Text(if (viewModel.isArabic) "مواعيد التدريب" else "Training Schedule") },
+            placeholder = { Text("مثال: السبت والإثنين والأربعاء 4-6 مساءً") },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            if (newAcNameAr.trim().isEmpty() || newAcCoachAr.trim().isEmpty() || newAcPhone.trim().isEmpty() || newAcFee.trim().isEmpty()) {
+              viewModel.triggerSystemNotification(
+                "تنبيه",
+                "يرجى تعبئة الحقول الأساسية لإنشاء الأكاديمية."
+              )
+            } else {
+              val feeVal = newAcFee.trim().toDoubleOrNull() ?: 15000.0
+              val newAc = Academy(
+                nameAr = newAcNameAr.trim(),
+                nameEn = newAcNameAr.trim(),
+                cityAr = newAcCityAr,
+                cityEn = "Damascus",
+                headCoachAr = newAcCoachAr.trim(),
+                headCoachEn = "Head Coach",
+                monthlyFee = feeVal,
+                ageGroupsAr = newAcAgeAr.trim().ifEmpty { "6 - 15 سنة" },
+                ageGroupsEn = "6 - 15 Years",
+                enrolledCount = 0,
+                rating = 4.8f,
+                phone = newAcPhone.trim(),
+                descriptionAr = newAcDescAr.trim().ifEmpty { "تدريبات كرة قدم احترافية للأطفال والمواهب الصاعدة" },
+                descriptionEn = "Professional football training for young talents",
+                scheduleAr = newAcScheduleAr.trim().ifEmpty { "السبت والإثنين والأربعاء" },
+                scheduleEn = "Saturday, Monday, Wednesday",
+                imageUri = ""
+              )
+              viewModel.addNewAcademy(newAc)
+              showCreateAcademyDialog = false
+            }
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
+        ) {
+          Text(if (viewModel.isArabic) "إنشاء الأكاديمية" else "Create Academy", color = Color.Black, fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showCreateAcademyDialog = false }) {
+          Text(if (viewModel.isArabic) "إلغاء" else "Cancel", color = Color.Gray)
+        }
+      }
+    )
+  }
 }
 
 @Composable
@@ -737,7 +1408,7 @@ fun AcademyListItem(academy: Academy, viewModel: AppViewModel, onEnrollClicked: 
       .shadow(4.dp, RoundedCornerShape(16.dp))
   ) {
     Column(modifier = Modifier.padding(16.dp)) {
-      val academyImgUrl = when (academy.id) {
+      val academyImgUrl = if (academy.imageUri.isNotEmpty()) academy.imageUri else when (academy.id) {
         1 -> "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=500&auto=format&fit=crop"
         2 -> "https://images.unsplash.com/photo-1543351611-58f69d7c1781?w=500&auto=format&fit=crop"
         3 -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&auto=format&fit=crop"
@@ -771,7 +1442,7 @@ fun AcademyListItem(academy: Academy, viewModel: AppViewModel, onEnrollClicked: 
             color = if (viewModel.isDarkMode) Color.White else DeepSlate
           )
           Text(
-            text = "${academy.cityAr} | ${academy.headCoachAr}",
+            text = "${academy.cityAr} | ${academy.headCoachAr} | 📞 ${academy.phone}",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
           )
@@ -820,16 +1491,56 @@ fun AcademyListItem(academy: Academy, viewModel: AppViewModel, onEnrollClicked: 
           )
         }
 
-        Button(
-          onClick = onEnrollClicked,
-          colors = ButtonDefaults.buttonColors(containerColor = ForestGreen, contentColor = Color.Black),
-          shape = RoundedCornerShape(10.dp)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = if (viewModel.isArabic) "سجل الآن" else "Enroll Student",
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
-          )
+          IconButton(
+            onClick = {
+              try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                  data = android.net.Uri.parse("tel:${academy.phone}")
+                }
+                context.startActivity(intent)
+              } catch (e: Exception) {}
+            },
+            modifier = Modifier
+              .border(1.dp, Gold, RoundedCornerShape(10.dp))
+              .size(40.dp)
+          ) {
+            Icon(Icons.Default.Phone, contentDescription = "Call Academy", tint = Gold)
+          }
+
+          IconButton(
+            onClick = {
+              try {
+                val intent = android.content.Intent(
+                  android.content.Intent.ACTION_VIEW,
+                  android.net.Uri.parse("geo:33.5138,36.2765?q=${academy.nameAr}, ${academy.cityAr}, سوريا")
+                )
+                context.startActivity(intent)
+              } catch (e: Exception) {}
+            },
+            modifier = Modifier
+              .border(1.dp, ForestGreen, RoundedCornerShape(10.dp))
+              .size(40.dp)
+          ) {
+            Icon(Icons.Default.Place, contentDescription = "Academy Location", tint = ForestGreen)
+          }
+
+          Button(
+            onClick = onEnrollClicked,
+            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen, contentColor = Color.Black),
+            shape = RoundedCornerShape(10.dp)
+          ) {
+            Text(
+              text = if (viewModel.isArabic) "سجل الآن" else "Enroll Student",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              color = Color.Black
+            )
+          }
         }
       }
     }

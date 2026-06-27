@@ -32,6 +32,10 @@ import coil.compose.AsyncImage
 import com.example.data.PlayerCard
 import com.example.ui.AppViewModel
 import com.example.ui.theme.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -411,6 +415,13 @@ fun StatLabelValue(label: String, value: Int, color: Color) {
 // Player card CV compile creation form screen
 @Composable
 fun CreatePlayerCardForm(viewModel: AppViewModel, onBack: () -> Unit) {
+  var photoUri by remember { mutableStateOf<String?>(null) }
+  val galleryLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.GetContent()
+  ) { uri: Uri? ->
+    photoUri = uri?.toString()
+  }
+
   var fullName by remember { mutableStateOf("") }
   var positionAr by remember { mutableStateOf("صانع ألعاب") }
   var birthdate by remember { mutableStateOf("") }
@@ -448,6 +459,62 @@ fun CreatePlayerCardForm(viewModel: AppViewModel, onBack: () -> Unit) {
         color = if (viewModel.isDarkMode) Color.White else DeepSlate,
         fontWeight = FontWeight.Bold
       )
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // Mandatory Gallery Photo Picker
+    Text(
+      text = if (viewModel.isArabic) "ارفق صورتك الكروية الشخصية من المعرض (إجبارية) 📸" else "Upload Soccer Photo from Gallery (Mandatory) 📸",
+      style = MaterialTheme.typography.bodyMedium,
+      color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+      fontWeight = FontWeight.Bold,
+      modifier = Modifier.padding(bottom = 8.dp)
+    )
+
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(160.dp)
+        .clip(RoundedCornerShape(12.dp))
+        .background(if (viewModel.isDarkMode) DarkCardBg else Color.White)
+        .border(2.dp, if (photoUri != null) ForestGreen else NeonPink, RoundedCornerShape(12.dp))
+        .clickable { galleryLauncher.launch("image/*") },
+      contentAlignment = Alignment.Center
+    ) {
+      if (photoUri != null) {
+        AsyncImage(
+          model = photoUri,
+          contentDescription = "Player photo preview",
+          contentScale = ContentScale.Crop,
+          modifier = Modifier.fillMaxSize()
+        )
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f)),
+          contentAlignment = Alignment.BottomCenter
+        ) {
+          Text(
+            text = if (viewModel.isArabic) "تم تحميل الصورة الشخصية بنجاح ✅ (اضغط للتغيير)" else "Photo Selected Successfully ✅ (Tap to change)",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(8.dp),
+            fontSize = 11.sp
+          )
+        }
+      } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+          Icon(Icons.Default.AddCircle, contentDescription = "Add Photo", tint = NeonPink, modifier = Modifier.size(40.dp))
+          Spacer(modifier = Modifier.height(8.dp))
+          Text(
+            text = if (viewModel.isArabic) "اختر صورتك الرياضية لإدراجها في شارة اللاعب (إجباري)" else "Choose soccer photo for player card (Required)",
+            color = Color.Gray,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+          )
+        }
+      }
     }
 
     Spacer(modifier = Modifier.height(16.dp))
@@ -555,7 +622,12 @@ fun CreatePlayerCardForm(viewModel: AppViewModel, onBack: () -> Unit) {
 
     Button(
       onClick = {
-        if (fullName.isNotEmpty() && phone.isNotEmpty()) {
+        if (photoUri == null) {
+          viewModel.triggerSystemNotification(
+            if (viewModel.isArabic) "تنبيه بالصورة الشخصية 📸" else "Photo Required 📸",
+            if (viewModel.isArabic) "يرجى إرفاق صورة شخصية حقيقية من معرض جهازك لإكمال البطاقة الكشفية!" else "Please attach a real photo from your gallery to compile your scout card!"
+          )
+        } else if (fullName.isNotEmpty() && phone.isNotEmpty()) {
           viewModel.cvFullName = fullName
           viewModel.cvPositionAr = positionAr
           viewModel.cvBirthdate = birthdate
@@ -574,6 +646,7 @@ fun CreatePlayerCardForm(viewModel: AppViewModel, onBack: () -> Unit) {
           viewModel.cvPhysical = physical.toInt()
           viewModel.cvTactics = tactics.toInt()
           viewModel.cvLeadership = leadership.toInt()
+          viewModel.cvPhotoUri = photoUri ?: ""
 
           viewModel.submitPlayerCard()
           onBack()

@@ -147,7 +147,7 @@ fun LeagueCardItem(league: League, teams: List<Team>, viewModel: AppViewModel, o
       .shadow(4.dp, RoundedCornerShape(16.dp))
   ) {
     Column(modifier = Modifier.padding(16.dp)) {
-      val leagueImgUrl = when (league.id) {
+      val leagueImgUrl = if (league.imageUri.isNotEmpty()) league.imageUri else when (league.id) {
         1 -> "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=500&auto=format&fit=crop"
         2 -> "https://images.unsplash.com/photo-1551958219-acbc608c6377?w=500&auto=format&fit=crop"
         3 -> "https://images.unsplash.com/photo-1459865264687-595d652de67e?w=500&auto=format&fit=crop"
@@ -215,6 +215,34 @@ fun LeagueCardItem(league: League, teams: List<Team>, viewModel: AppViewModel, o
         )
       }
 
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Organizer Contact Phone Number
+      val contextForCall = androidx.compose.ui.platform.LocalContext.current
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clickable {
+            try {
+              val intent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                data = android.net.Uri.parse("tel:${league.organizerPhone}")
+              }
+              contextForCall.startActivity(intent)
+            } catch (e: Exception) {}
+          }
+          .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+      ) {
+        Icon(Icons.Default.Phone, contentDescription = "Call Organizer", tint = ForestGreen, modifier = Modifier.size(16.dp))
+        Text(
+          text = if (viewModel.isArabic) "للتواصل مع منظم البطولة: ${league.organizerPhone}" else "Contact League Organizer: ${league.organizerPhone}",
+          style = MaterialTheme.typography.bodySmall,
+          color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+          fontWeight = FontWeight.Bold
+        )
+      }
+
       Spacer(modifier = Modifier.height(12.dp))
 
       // Action Row
@@ -247,20 +275,44 @@ fun LeagueCardItem(league: League, teams: List<Team>, viewModel: AppViewModel, o
           Spacer(modifier = Modifier.width(1.dp))
         }
 
-        // Only allow registering for upcoming leagues
-        if (league.status == "UPCOMING") {
-          Button(
-            onClick = onRegisterClick,
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-            shape = RoundedCornerShape(10.dp)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          IconButton(
+            onClick = {
+              try {
+                val intent = android.content.Intent(
+                  android.content.Intent.ACTION_VIEW,
+                  android.net.Uri.parse("geo:33.5138,36.2765?q=${league.nameAr}, ${league.locationAr}, سوريا")
+                )
+                context.startActivity(intent)
+              } catch (e: Exception) {}
+            },
+            modifier = Modifier
+              .border(1.dp, ForestGreen, RoundedCornerShape(10.dp))
+              .size(40.dp)
           ) {
-            Icon(Icons.Default.Add, contentDescription = "Join league", modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-              text = if (viewModel.isArabic) "تسجيل فريقك" else "Register Team",
-              fontSize = 12.sp,
-              fontWeight = FontWeight.Bold
-            )
+            Icon(Icons.Default.Place, contentDescription = "League Location", tint = ForestGreen)
+          }
+
+          // Only allow registering for upcoming leagues
+          if (league.status == "UPCOMING") {
+            Button(
+              onClick = onRegisterClick,
+              colors = ButtonDefaults.buttonColors(containerColor = ForestGreen, contentColor = Color.Black),
+              shape = RoundedCornerShape(10.dp)
+            ) {
+              Icon(Icons.Default.Add, contentDescription = "Join league", modifier = Modifier.size(16.dp), tint = Color.Black)
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = if (viewModel.isArabic) "تسجيل فريقك" else "Register Team",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+              )
+            }
           }
         }
       }

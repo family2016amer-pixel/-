@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -30,6 +31,12 @@ import com.example.data.*
 import com.example.ui.AppViewModel
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+
 
 // Simulated Log Entry
 data class UserLog(val time: String, val action: String)
@@ -87,6 +94,53 @@ fun AdminScreen(viewModel: AppViewModel) {
   var pgManagerName by remember { mutableStateOf("") }
   var pgManagerPhone by remember { mutableStateOf("") }
 
+  // Inner Sub-Tab selection: PLAYGROUNDS, ACADEMIES, LEAGUES
+  var entitySubTab by remember { mutableStateOf("PLAYGROUNDS") }
+
+  // Playgrounds photo picker
+  var pgImageUri by remember { mutableStateOf<String?>(null) }
+  val pgGalleryLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.GetContent()
+  ) { uri: Uri? -> pgImageUri = uri?.toString() }
+
+  // Academies form states
+  var showAddAcademyForm by remember { mutableStateOf(false) }
+  var acNameAr by remember { mutableStateOf("") }
+  var acNameEn by remember { mutableStateOf("") }
+  var acCityAr by remember { mutableStateOf("دمشق") }
+  var acCityEn by remember { mutableStateOf("Damascus") }
+  var acCoachAr by remember { mutableStateOf("") }
+  var acCoachEn by remember { mutableStateOf("") }
+  var acFee by remember { mutableStateOf("25000") }
+  var acAgeAr by remember { mutableStateOf("6 - 12 سنة") }
+  var acAgeEn by remember { mutableStateOf("6 - 12 Years") }
+  var acPhone by remember { mutableStateOf("") }
+  var acDescAr by remember { mutableStateOf("") }
+  var acDescEn by remember { mutableStateOf("") }
+  var acScheduleAr by remember { mutableStateOf("السبت والإثنين 16:00") }
+  var acScheduleEn by remember { mutableStateOf("Sat & Mon 16:00") }
+  var acImageUri by remember { mutableStateOf<String?>(null) }
+  val acGalleryLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.GetContent()
+  ) { uri: Uri? -> acImageUri = uri?.toString() }
+
+  // Leagues form states
+  var showAddLeagueForm by remember { mutableStateOf(false) }
+  var lgNameAr by remember { mutableStateOf("") }
+  var lgNameEn by remember { mutableStateOf("") }
+  var lgSeason by remember { mutableStateOf("صيف 2026") }
+  var lgTeamCount by remember { mutableStateOf("8") }
+  var lgPrizeAr by remember { mutableStateOf("الكأس وميداليات ذهبية + مليون ل.س") }
+  var lgPrizeEn by remember { mutableStateOf("Cup, Gold Medals + 1M SYP") }
+  var lgLocationAr by remember { mutableStateOf("") }
+  var lgLocationEn by remember { mutableStateOf("") }
+  var lgMaxPlayers by remember { mutableStateOf("12") }
+  var lgImageUri by remember { mutableStateOf<String?>(null) }
+  val lgGalleryLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.GetContent()
+  ) { uri: Uri? -> lgImageUri = uri?.toString() }
+
+
   // Request notes dialog states
   var activeReviewBooking by remember { mutableStateOf<Booking?>(null) }
   var activeReviewAcademyReg by remember { mutableStateOf<AcademyRegistration?>(null) }
@@ -110,7 +164,7 @@ fun AdminScreen(viewModel: AppViewModel) {
       ) {
         Column {
           Text(
-            text = if (viewModel.isArabic) "مركز إدارة ملاعبنا ⚙️" else "Malaebna Admin Center ⚙️",
+            text = if (viewModel.isArabic) "مركز إدارة الكابتن ⚙️" else "Al-Captain Admin Center ⚙️",
             style = MaterialTheme.typography.titleLarge,
             color = if (viewModel.isDarkMode) Color.White else DeepSlate,
             fontWeight = FontWeight.Bold
@@ -172,13 +226,47 @@ fun AdminScreen(viewModel: AppViewModel) {
           val pendingAcademies = academyRegistrations.filter { it.status == "PENDING" }
 
           Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = "${if (viewModel.isArabic) "الطلبات الحالية بانتظار التحقق المالي:" else "Pending financial verifications:"} ${pendingBookings.size + pendingAcademies.size}",
-              style = MaterialTheme.typography.titleMedium,
-              color = ForestGreen,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.padding(bottom = 12.dp)
-            )
+            val context = LocalContext.current
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = "${if (viewModel.isArabic) "الطلبات بانتظار التحقق:" else "Pending Verifications:"} ${pendingBookings.size + pendingAcademies.size}",
+                style = MaterialTheme.typography.titleMedium,
+                color = ForestGreen,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+              )
+
+              Button(
+                onClick = {
+                  val sb = java.lang.StringBuilder()
+                  sb.append("--- تقرير الحجوزات والطلبات المعلقة في الكابتن ---\n\n")
+                  
+                  sb.append("أولاً: الحجوزات المعلقة للتحقق (Pending Bookings)\n")
+                  sb.append("معرف الحجز,الملعب الرياضي,اسم الكابتن,رقم الهاتف,التاريخ,الوقت,التكلفة ل.س,الحالة\n")
+                  pendingBookings.forEach { b ->
+                    sb.append("${b.id},${b.playgroundNameAr},${b.captainName},${b.captainPhone},${b.date},\"${b.timeSlot}\",${b.totalCost},${b.status}\n")
+                  }
+                  
+                  sb.append("\nثانياً: طلبات تسجيل الأكاديميات المعلقة (Pending Academy Registrations)\n")
+                  sb.append("معرف الطلب,اسم الطالب,الأكاديمية بالعربي,هاتف ولي الأمر,الحالة\n")
+                  pendingAcademies.forEach { r ->
+                    sb.append("${r.id},${r.studentName},${r.academyNameAr},${r.parentPhone},${r.status}\n")
+                  }
+                  
+                  exportToExcelCSV(context, "الكابتن_الطلبات_المعلقة", sb.toString(), viewModel)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.height(32.dp)
+              ) {
+                Text("تصدير إكسل 📥", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+              }
+            }
 
             if (pendingBookings.isEmpty() && pendingAcademies.isEmpty()) {
               Box(
@@ -304,13 +392,36 @@ fun AdminScreen(viewModel: AppViewModel) {
         "USERS" -> {
           // إدارة المستخدمين
           Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = if (viewModel.isArabic) "صلاحيات وحسابات المستخدمين السوريين" else "Syrian User Accounts Control Panel",
-              style = MaterialTheme.typography.titleMedium,
-              color = ForestGreen,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.padding(bottom = 12.dp)
-            )
+            val context = LocalContext.current
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = if (viewModel.isArabic) "صلاحيات حسابات الكباتن" else "User Accounts Control Panel",
+                style = MaterialTheme.typography.titleMedium,
+                color = ForestGreen,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+              )
+
+              Button(
+                onClick = {
+                  val csvHeader = "ID,Name,Phone,Role,Status,Last Activity\n"
+                  val csvRows = usersList.joinToString("\n") { u ->
+                    "${u.id},${u.name},${u.phone},${u.role},${if (u.isBlocked) "Blocked" else "Active"},\"${u.logs.firstOrNull()?.action ?: "None"}\""
+                  }
+                  exportToExcelCSV(context, "الكابتن_المستخدمين", csvHeader + csvRows, viewModel)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.height(32.dp)
+              ) {
+                Text("تصدير إكسل 📥", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+              }
+            }
 
             LazyColumn(
               verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -428,243 +539,760 @@ fun AdminScreen(viewModel: AppViewModel) {
         }
 
         "FIELDS" -> {
-          // إدارة الملاعب
+          // إدارة الهيئات والملاعب الرياضية
           Column(modifier = Modifier.weight(1f)) {
+            // Segmented Control
             Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
+              modifier = Modifier
+                .fillMaxWidth()
+                .background(if (viewModel.isDarkMode) DarkCardBg else Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .padding(4.dp),
+              horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-              Text(
-                text = if (viewModel.isArabic) "إدارة الملاعب السورية" else "Syrian Stadium Registry",
-                style = MaterialTheme.typography.titleMedium,
-                color = ForestGreen,
-                fontWeight = FontWeight.Bold
+              val entitiesList = listOf(
+                "PLAYGROUNDS" to (if (viewModel.isArabic) "الملاعب 🏟️" else "Stadiums"),
+                "ACADEMIES" to (if (viewModel.isArabic) "الأكاديميات 🏫" else "Academies"),
+                "LEAGUES" to (if (viewModel.isArabic) "الدوريات 🏆" else "Leagues")
               )
-
-              Button(
-                onClick = {
-                  pgNameAr = ""
-                  pgNameEn = ""
-                  pgArea = ""
-                  pgPrice = "35000"
-                  pgManagerName = ""
-                  pgManagerPhone = ""
-                  editTargetPlayground = null
-                  showAddPlaygroundForm = !showAddPlaygroundForm
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-                shape = RoundedCornerShape(8.dp)
-              ) {
-                Text(
-                  text = if (showAddPlaygroundForm) "عرض القائمة 🏟️" else "إضافة ملعب جديد +",
-                  fontSize = 11.sp,
-                  color = Color.Black,
-                  fontWeight = FontWeight.Bold
-                )
+              entitiesList.forEach { (entityId, label) ->
+                val isSel = entitySubTab == entityId
+                Box(
+                  modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (isSel) ForestGreen else Color.Transparent)
+                    .clickable { entitySubTab = entityId }
+                    .padding(vertical = 8.dp),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Text(
+                    text = label,
+                    color = if (isSel) Color.Black else (if (viewModel.isDarkMode) Color.LightGray else DeepSlate),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                  )
+                }
               }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (showAddPlaygroundForm || editTargetPlayground != null) {
-              // Add / Edit Playground Form
-              Column(
-                modifier = Modifier
-                  .weight(1f)
-                  .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-              ) {
-                Text(
-                  text = if (editTargetPlayground != null) "تعديل بيانات الملعب الكروي" else "إدخال ملعب كروي جديد للمنظومة",
-                  color = if (viewModel.isDarkMode) Color.White else DeepSlate,
-                  fontWeight = FontWeight.Bold,
-                  fontSize = 13.sp
-                )
-
-                OutlinedTextField(
-                  value = pgNameAr,
-                  onValueChange = { pgNameAr = it },
-                  label = { Text("اسم الملعب بالعربي") },
-                  modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                  value = pgNameEn,
-                  onValueChange = { pgNameEn = it },
-                  label = { Text("Stadium Name in English") },
-                  modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                  OutlinedTextField(
-                    value = pgCity,
-                    onValueChange = { pgCity = it },
-                    label = { Text("المحافظة") },
-                    modifier = Modifier.weight(1f)
-                  )
-                  OutlinedTextField(
-                    value = pgArea,
-                    onValueChange = { pgArea = it },
-                    label = { Text("المنطقة") },
-                    modifier = Modifier.weight(1f)
-                  )
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                  OutlinedTextField(
-                    value = pgPrice,
-                    onValueChange = { pgPrice = it },
-                    label = { Text("سعر الحجز لـ ٩٠ دقيقة (ل.س)") },
-                    modifier = Modifier.weight(1f)
-                  )
-                  OutlinedTextField(
-                    value = pgType,
-                    onValueChange = { pgType = it },
-                    label = { Text("نوع العشب") },
-                    modifier = Modifier.weight(1f)
-                  )
-                }
-
-                OutlinedTextField(
-                  value = pgManagerName,
-                  onValueChange = { pgManagerName = it },
-                  label = { Text("اسم المستثمر / المدير المسجل") },
-                  modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                  value = pgManagerPhone,
-                  onValueChange = { pgManagerPhone = it },
-                  label = { Text("هاتف التواصل مع الإدارة") },
-                  modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Button(
-                  onClick = {
-                    if (pgNameAr.isNotEmpty() && pgPrice.isNotEmpty()) {
-                      val priceVal = pgPrice.toDoubleOrNull() ?: 35000.0
-                      if (editTargetPlayground != null) {
-                        val original = editTargetPlayground!!
-                        val updated = original.copy(
-                          nameAr = pgNameAr,
-                          nameEn = pgNameEn,
-                          city = pgCity,
-                          area = pgArea,
-                          price90 = priceVal,
-                          groundType = pgType,
-                          managerName = pgManagerName,
-                          managerPhone = pgManagerPhone
-                        )
-                        viewModel.updateExistingPlayground(updated)
-                        editTargetPlayground = null
-                        viewModel.triggerSystemNotification("تم تعديل الملعب", "تم حفظ وتحديث بيانات الملعب المختار بنجاح.")
-                      } else {
-                        val newPg = Playground(
-                          nameAr = pgNameAr,
-                          nameEn = pgNameEn,
-                          city = pgCity,
-                          area = pgArea,
-                          price90 = priceVal,
-                          rating = 4.7f,
-                          reviewsCount = 12,
-                          groundType = pgType,
-                          managerName = pgManagerName,
-                          managerPhone = pgManagerPhone,
-                          lat = 33.5138,
-                          lng = 36.2765,
-                          amenities = "balls,water,parking,shower"
-                        )
-                        viewModel.addNewPlayground(newPg)
-                        showAddPlaygroundForm = false
-                        viewModel.triggerSystemNotification("تم تسجيل ملعب جديد", "تم تسجيل ملعب $pgNameAr كعضو معتمد في شبكتنا الكروية السورية.")
-                      }
-                    }
-                  },
-                  colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-                  shape = RoundedCornerShape(10.dp),
-                  modifier = Modifier.fillMaxWidth()
+            when (entitySubTab) {
+              "PLAYGROUNDS" -> {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
                 ) {
                   Text(
-                    text = if (editTargetPlayground != null) "حفظ التعديلات الحالية 💾" else "إضافة وتسجيل الملعب كلياً 🏟️",
-                    color = Color.Black,
+                    text = if (viewModel.isArabic) "إدارة الملاعب الرياضية" else "Stadium Registry",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ForestGreen,
                     fontWeight = FontWeight.Bold
                   )
+
+                  Button(
+                    onClick = {
+                      pgNameAr = ""
+                      pgNameEn = ""
+                      pgArea = ""
+                      pgPrice = "35000"
+                      pgManagerName = ""
+                      pgManagerPhone = ""
+                      pgImageUri = null
+                      editTargetPlayground = null
+                      showAddPlaygroundForm = !showAddPlaygroundForm
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+                    shape = RoundedCornerShape(8.dp)
+                  ) {
+                    Text(
+                      text = if (showAddPlaygroundForm) "عرض الملاعب 🏟️" else "ملعب جديد +",
+                      fontSize = 11.sp,
+                      color = Color.Black,
+                      fontWeight = FontWeight.Bold
+                    )
+                  }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (showAddPlaygroundForm || editTargetPlayground != null) {
+                  // Add / Edit Playground Form
+                  Column(
+                    modifier = Modifier
+                      .weight(1f)
+                      .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                  ) {
+                    Text(
+                      text = if (editTargetPlayground != null) "تعديل بيانات الملعب الكروي" else "إدخال ملعب كروي جديد للمنظومة",
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+                      fontWeight = FontWeight.Bold,
+                      fontSize = 13.sp
+                    )
+
+                    // Mandatory Playground Image Picker
+                    Text(
+                      text = "اختر صورة الملعب من معرض الصور (إجبارية) 📸",
+                      style = MaterialTheme.typography.bodyMedium,
+                      fontWeight = FontWeight.Bold,
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate
+                    )
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (viewModel.isDarkMode) DarkCardBg else Color.LightGray.copy(alpha = 0.2f))
+                        .border(1.5.dp, if (pgImageUri != null) ForestGreen else NeonPink, RoundedCornerShape(8.dp))
+                        .clickable { pgGalleryLauncher.launch("image/*") },
+                      contentAlignment = Alignment.Center
+                    ) {
+                      if (pgImageUri != null) {
+                        AsyncImage(
+                          model = pgImageUri,
+                          contentDescription = "Selected Playground Image",
+                          contentScale = ContentScale.Crop,
+                          modifier = Modifier.fillMaxSize()
+                        )
+                      } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                          Icon(Icons.Default.Add, contentDescription = "Add image", tint = NeonPink)
+                          Text("اضغط لإضافة صورة الملعب من المعرض (مطلوب)", color = Color.Gray, fontSize = 11.sp)
+                        }
+                      }
+                    }
+
+                    OutlinedTextField(
+                      value = pgNameAr,
+                      onValueChange = { pgNameAr = it },
+                      label = { Text("اسم الملعب بالعربي") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                      value = pgNameEn,
+                      onValueChange = { pgNameEn = it },
+                      label = { Text("Stadium Name in English") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                      OutlinedTextField(
+                        value = pgCity,
+                        onValueChange = { pgCity = it },
+                        label = { Text("المحافظة") },
+                        modifier = Modifier.weight(1f)
+                      )
+                      OutlinedTextField(
+                        value = pgArea,
+                        onValueChange = { pgArea = it },
+                        label = { Text("المنطقة") },
+                        modifier = Modifier.weight(1f)
+                      )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                      OutlinedTextField(
+                        value = pgPrice,
+                        onValueChange = { pgPrice = it },
+                        label = { Text("سعر الحجز لـ ٩٠ دقيقة (ل.س)") },
+                        modifier = Modifier.weight(1f)
+                      )
+                      OutlinedTextField(
+                        value = pgType,
+                        onValueChange = { pgType = it },
+                        label = { Text("نوع العشب") },
+                        modifier = Modifier.weight(1f)
+                      )
+                    }
+
+                    OutlinedTextField(
+                      value = pgManagerName,
+                      onValueChange = { pgManagerName = it },
+                      label = { Text("اسم المستثمر / المدير المسجل") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                      value = pgManagerPhone,
+                      onValueChange = { pgManagerPhone = it },
+                      label = { Text("هاتف التواصل مع الإدارة") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                      onClick = {
+                        if (pgImageUri == null && editTargetPlayground == null) {
+                          viewModel.triggerSystemNotification(
+                            "تنبيه بالتحقق ⚠️",
+                            "يجب اختيار صورة للملعب من معرض الصور لإتمام عملية الإعلان والترخيص!"
+                          )
+                        } else if (pgNameAr.isNotEmpty() && pgPrice.isNotEmpty()) {
+                          val priceVal = pgPrice.toDoubleOrNull() ?: 35000.0
+                          if (editTargetPlayground != null) {
+                            val original = editTargetPlayground!!
+                            val updated = original.copy(
+                              nameAr = pgNameAr,
+                              nameEn = pgNameEn,
+                              city = pgCity,
+                              area = pgArea,
+                              price90 = priceVal,
+                              groundType = pgType,
+                              managerName = pgManagerName,
+                              managerPhone = pgManagerPhone,
+                              imageUri = pgImageUri ?: original.imageUri
+                            )
+                            viewModel.updateExistingPlayground(updated)
+                            editTargetPlayground = null
+                            viewModel.triggerSystemNotification("تم تعديل الملعب", "تم حفظ وتحديث بيانات الملعب المختار بنجاح.")
+                          } else {
+                            val newPg = Playground(
+                              nameAr = pgNameAr,
+                              nameEn = pgNameEn,
+                              city = pgCity,
+                              area = pgArea,
+                              price90 = priceVal,
+                              rating = 4.7f,
+                              reviewsCount = 12,
+                              groundType = pgType,
+                              managerName = pgManagerName,
+                              managerPhone = pgManagerPhone,
+                              lat = 33.5138,
+                              lng = 36.2765,
+                              amenities = "balls,water,parking,shower",
+                              imageUri = pgImageUri ?: ""
+                            )
+                            viewModel.addNewPlayground(newPg)
+                            showAddPlaygroundForm = false
+                            viewModel.triggerSystemNotification("تم تسجيل ملعب جديد", "تم تسجيل ملعب $pgNameAr كعضو معتمد في شبكتنا الكروية السورية.")
+                          }
+                        }
+                      },
+                      colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+                      shape = RoundedCornerShape(10.dp),
+                      modifier = Modifier.fillMaxWidth()
+                    ) {
+                      Text(
+                        text = if (editTargetPlayground != null) "حفظ التعديلات الحالية 💾" else "إضافة وتسجيل الملعب كلياً 🏟️",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                      )
+                    }
+                  }
+                } else {
+                  // Playgrounds List
+                  LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize()
+                  ) {
+                    items(playgroundsList) { pg ->
+                      Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (viewModel.isDarkMode) DarkCardBg else Color.White),
+                        border = BorderStroke(1.dp, if (viewModel.isDarkMode) DarkBorder else LightBorder),
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                          Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                          ) {
+                            Column {
+                              Text(text = pg.nameAr, fontWeight = FontWeight.Bold, color = if (viewModel.isDarkMode) Color.White else DeepSlate)
+                              Text(text = "${pg.city} - ${pg.area} | ${pg.groundType}", color = Color.Gray, fontSize = 11.sp)
+                            }
+                            Text(
+                              text = "${pg.price90.toInt()} ل.س",
+                              color = ForestGreen,
+                              fontWeight = FontWeight.Bold,
+                              fontSize = 13.sp
+                            )
+                          }
+
+                          if (pg.imageUri.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            AsyncImage(
+                              model = pg.imageUri,
+                              contentDescription = null,
+                              contentScale = ContentScale.Crop,
+                              modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                            )
+                          }
+
+                          Spacer(modifier = Modifier.height(10.dp))
+
+                          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                              onClick = {
+                                editTargetPlayground = pg
+                                pgNameAr = pg.nameAr
+                                pgNameEn = pg.nameEn
+                                pgCity = pg.city
+                                pgArea = pg.area
+                                pgPrice = pg.price90.toInt().toString()
+                                pgType = pg.groundType
+                                pgManagerName = pg.managerName
+                                pgManagerPhone = pg.managerPhone
+                                pgImageUri = pg.imageUri
+                              },
+                              modifier = Modifier
+                                .background(ForestGreen.copy(0.15f), RoundedCornerShape(8.dp))
+                                .weight(1f)
+                            ) {
+                              Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = ForestGreen)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("تعديل", fontSize = 11.sp, color = ForestGreen, fontWeight = FontWeight.Bold)
+                              }
+                            }
+
+                            IconButton(
+                              onClick = {
+                                viewModel.deleteExistingPlayground(pg)
+                                viewModel.triggerSystemNotification("تم إقصاء الملعب", "تم إلغاء ترخيص وحذف ${pg.nameAr} من المنظومة.")
+                              },
+                              modifier = Modifier
+                                .background(NeonPink.copy(0.15f), RoundedCornerShape(8.dp))
+                                .weight(1f)
+                            ) {
+                              Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = NeonPink)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("حذف الملعب", fontSize = 11.sp, color = NeonPink, fontWeight = FontWeight.Bold)
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
-            } else {
-              // Playgrounds List
-              LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxSize()
-              ) {
-                items(playgroundsList) { pg ->
-                  Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (viewModel.isDarkMode) DarkCardBg else Color.White),
-                    border = BorderStroke(1.dp, if (viewModel.isDarkMode) DarkBorder else LightBorder),
-                    modifier = Modifier.fillMaxWidth()
+
+              "ACADEMIES" -> {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Text(
+                    text = if (viewModel.isArabic) "إدارة الأكاديميات الكروية" else "Academy Center",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ForestGreen,
+                    fontWeight = FontWeight.Bold
+                  )
+
+                  Button(
+                    onClick = {
+                      acNameAr = ""
+                      acNameEn = ""
+                      acCoachAr = ""
+                      acCoachEn = ""
+                      acPhone = ""
+                      acDescAr = ""
+                      acDescEn = ""
+                      acImageUri = null
+                      showAddAcademyForm = !showAddAcademyForm
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+                    shape = RoundedCornerShape(8.dp)
                   ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                      Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                      ) {
-                        Column {
-                          Text(text = pg.nameAr, fontWeight = FontWeight.Bold, color = if (viewModel.isDarkMode) Color.White else DeepSlate)
-                          Text(text = "${pg.city} - ${pg.area} | ${pg.groundType}", color = Color.Gray, fontSize = 11.sp)
-                        }
-                        Text(
-                          text = "${pg.price90.toInt()} ل.س",
-                          color = ForestGreen,
-                          fontWeight = FontWeight.Bold,
-                          fontSize = 13.sp
+                    Text(
+                      text = if (showAddAcademyForm) "عرض القائمة 🏫" else "أكاديمية جديدة +",
+                      fontSize = 11.sp,
+                      color = Color.Black,
+                      fontWeight = FontWeight.Bold
+                    )
+                  }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (showAddAcademyForm) {
+                  // Add Academy Form
+                  Column(
+                    modifier = Modifier
+                      .weight(1f)
+                      .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                  ) {
+                    Text(
+                      text = "إدخال أكاديمية رياضية جديدة مع صورة إلزامية",
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+                      fontWeight = FontWeight.Bold,
+                      fontSize = 13.sp
+                    )
+
+                    // Mandatory Gallery Image Picker
+                    Text(
+                      text = "صورة الإعلان من المعرض (إجبارية) 📸",
+                      style = MaterialTheme.typography.bodyMedium,
+                      fontWeight = FontWeight.Bold,
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate
+                    )
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (viewModel.isDarkMode) DarkCardBg else Color.LightGray.copy(alpha = 0.2f))
+                        .border(1.5.dp, if (acImageUri != null) ForestGreen else NeonPink, RoundedCornerShape(8.dp))
+                        .clickable { acGalleryLauncher.launch("image/*") },
+                      contentAlignment = Alignment.Center
+                    ) {
+                      if (acImageUri != null) {
+                        AsyncImage(
+                          model = acImageUri,
+                          contentDescription = "Selected Academy Image",
+                          contentScale = ContentScale.Crop,
+                          modifier = Modifier.fillMaxSize()
                         )
-                      }
-
-                      Spacer(modifier = Modifier.height(10.dp))
-
-                      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                          onClick = {
-                            editTargetPlayground = pg
-                            pgNameAr = pg.nameAr
-                            pgNameEn = pg.nameEn
-                            pgCity = pg.city
-                            pgArea = pg.area
-                            pgPrice = pg.price90.toInt().toString()
-                            pgType = pg.groundType
-                            pgManagerName = pg.managerName
-                            pgManagerPhone = pg.managerPhone
-                          },
-                          modifier = Modifier
-                            .background(ForestGreen.copy(0.15f), RoundedCornerShape(8.dp))
-                            .weight(1f)
-                        ) {
-                          Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = ForestGreen)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("تعديل", fontSize = 11.sp, color = ForestGreen, fontWeight = FontWeight.Bold)
-                          }
+                      } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                          Icon(Icons.Default.Add, contentDescription = "Add Image", tint = NeonPink)
+                          Text("اضغط لإضافة صورة إعلان الأكاديمية من المعرض (مطلوب)", color = Color.Gray, fontSize = 11.sp)
                         }
+                      }
+                    }
 
-                        IconButton(
-                          onClick = {
-                            viewModel.deleteExistingPlayground(pg)
-                            viewModel.triggerSystemNotification("تم إقصاء الملعب", "تم إلغاء ترخيص وحذف ${pg.nameAr} من المنظومة.")
-                          },
-                          modifier = Modifier
-                            .background(NeonPink.copy(0.15f), RoundedCornerShape(8.dp))
-                            .weight(1f)
-                        ) {
-                          Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = NeonPink)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("حذف الملعب", fontSize = 11.sp, color = NeonPink, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(
+                      value = acNameAr,
+                      onValueChange = { acNameAr = it },
+                      label = { Text("اسم الأكاديمية بالعربي *") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                      value = acNameEn,
+                      onValueChange = { acNameEn = it },
+                      label = { Text("Academy Name in English") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                      OutlinedTextField(
+                        value = acCityAr,
+                        onValueChange = { acCityAr = it },
+                        label = { Text("المحافظة") },
+                        modifier = Modifier.weight(1f)
+                      )
+                      OutlinedTextField(
+                        value = acCoachAr,
+                        onValueChange = { acCoachAr = it },
+                        label = { Text("المدير الفني / الكابتن *") },
+                        modifier = Modifier.weight(1f)
+                      )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                      OutlinedTextField(
+                        value = acFee,
+                        onValueChange = { acFee = it },
+                        label = { Text("الرسم الشهري (ل.س)") },
+                        modifier = Modifier.weight(1f)
+                      )
+                      OutlinedTextField(
+                        value = acPhone,
+                        onValueChange = { acPhone = it },
+                        label = { Text("رقم هاتف التسجيل *") },
+                        modifier = Modifier.weight(1f)
+                      )
+                    }
+
+                    OutlinedTextField(
+                      value = acDescAr,
+                      onValueChange = { acDescAr = it },
+                      label = { Text("نبذة وتوضيحات عن الأكاديمية") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                      onClick = {
+                        if (acImageUri == null) {
+                          viewModel.triggerSystemNotification(
+                            "تنبيه بالصورة 📸",
+                            "يجب إرفاق صورة الإعلان الرسمية من معرض جهازك لإطلاق الأكاديمية!"
+                          )
+                        } else if (acNameAr.isNotEmpty() && acCoachAr.isNotEmpty() && acPhone.isNotEmpty()) {
+                          val newAc = Academy(
+                            nameAr = acNameAr,
+                            nameEn = acNameEn.ifEmpty { acNameAr },
+                            cityAr = acCityAr,
+                            cityEn = acCityEn,
+                            headCoachAr = acCoachAr,
+                            headCoachEn = acCoachEn.ifEmpty { acCoachAr },
+                            monthlyFee = acFee.toDoubleOrNull() ?: 25000.0,
+                            ageGroupsAr = acAgeAr,
+                            ageGroupsEn = acAgeEn,
+                            enrolledCount = 0,
+                            phone = acPhone,
+                            descriptionAr = acDescAr,
+                            descriptionEn = acDescEn.ifEmpty { acDescAr },
+                            scheduleAr = acScheduleAr,
+                            scheduleEn = acScheduleEn,
+                            imageUri = acImageUri ?: ""
+                          )
+                          viewModel.addNewAcademy(newAc)
+                          showAddAcademyForm = false
+                          viewModel.triggerSystemNotification("أكاديمية جديدة معتمدة", "تم إعلان الأكاديمية ($acNameAr) الكشفية في المنصة بنجاح.")
+                        } else {
+                          viewModel.triggerSystemNotification("حقول مطلوبة ناقصة", "يرجى تعبئة الحقول الأساسية: اسم الأكاديمية، الكابتن، وهاتف التسجيل.")
+                        }
+                      },
+                      colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+                      shape = RoundedCornerShape(10.dp),
+                      modifier = Modifier.fillMaxWidth()
+                    ) {
+                      Text("تثبيت وإعلان الأكاديمية كلياً 🏫", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                } else {
+                  // Academies list
+                  LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize()
+                  ) {
+                    items(academiesList) { ac ->
+                      Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (viewModel.isDarkMode) DarkCardBg else Color.White),
+                        border = BorderStroke(1.dp, if (viewModel.isDarkMode) DarkBorder else LightBorder),
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                          Text(text = ac.nameAr, fontWeight = FontWeight.Bold, color = if (viewModel.isDarkMode) Color.White else DeepSlate)
+                          Text(text = "الكابتن: ${ac.headCoachAr} | الموبايل: ${ac.phone}", color = Color.Gray, fontSize = 11.sp)
+                          Text(text = "رسم الاشتراك: ${ac.monthlyFee.toInt()} ل.س", color = ForestGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+                          val img = if (ac.imageUri.isNotEmpty()) ac.imageUri else when (ac.id) {
+                            1 -> "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=500&auto=format&fit=crop"
+                            2 -> "https://images.unsplash.com/photo-1543351611-58f69d7c1781?w=500&auto=format&fit=crop"
+                            3 -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&auto=format&fit=crop"
+                            else -> "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=500&auto=format&fit=crop"
                           }
+
+                          Spacer(modifier = Modifier.height(8.dp))
+                          AsyncImage(
+                            model = img,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                              .fillMaxWidth()
+                              .height(100.dp)
+                              .clip(RoundedCornerShape(8.dp))
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              "LEAGUES" -> {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Text(
+                    text = if (viewModel.isArabic) "إدارة دوريات وبطولات الكابتن" else "Leagues Hub",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ForestGreen,
+                    fontWeight = FontWeight.Bold
+                  )
+
+                  Button(
+                    onClick = {
+                      lgNameAr = ""
+                      lgNameEn = ""
+                      lgLocationAr = ""
+                      lgLocationEn = ""
+                      lgPrizeAr = ""
+                      lgImageUri = null
+                      showAddLeagueForm = !showAddLeagueForm
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+                    shape = RoundedCornerShape(8.dp)
+                  ) {
+                    Text(
+                      text = if (showAddLeagueForm) "عرض البطولات 🏆" else "بطولة جديدة +",
+                      fontSize = 11.sp,
+                      color = Color.Black,
+                      fontWeight = FontWeight.Bold
+                    )
+                  }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (showAddLeagueForm) {
+                  // Add League Form
+                  Column(
+                    modifier = Modifier
+                      .weight(1f)
+                      .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                  ) {
+                    Text(
+                      text = "تنظيم دوري أو بطولة محلية مع صورة إعلان حقيقية",
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+                      fontWeight = FontWeight.Bold,
+                      fontSize = 13.sp
+                    )
+
+                    // Mandatory Gallery Image Picker
+                    Text(
+                      text = "شعار أو صورة البطولة من المعرض (إجبارية) 📸",
+                      style = MaterialTheme.typography.bodyMedium,
+                      fontWeight = FontWeight.Bold,
+                      color = if (viewModel.isDarkMode) Color.White else DeepSlate
+                    )
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (viewModel.isDarkMode) DarkCardBg else Color.LightGray.copy(alpha = 0.2f))
+                        .border(1.5.dp, if (lgImageUri != null) ForestGreen else NeonPink, RoundedCornerShape(8.dp))
+                        .clickable { lgGalleryLauncher.launch("image/*") },
+                      contentAlignment = Alignment.Center
+                    ) {
+                      if (lgImageUri != null) {
+                        AsyncImage(
+                          model = lgImageUri,
+                          contentDescription = "Selected League Image",
+                          contentScale = ContentScale.Crop,
+                          modifier = Modifier.fillMaxSize()
+                        )
+                      } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                          Icon(Icons.Default.Add, contentDescription = "Add Image", tint = NeonPink)
+                          Text("اضغط لاختيار شعار/صورة البطولة من المعرض (مطلوب)", color = Color.Gray, fontSize = 11.sp)
+                        }
+                      }
+                    }
+
+                    OutlinedTextField(
+                      value = lgNameAr,
+                      onValueChange = { lgNameAr = it },
+                      label = { Text("اسم الدوري بالعربي *") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                      value = lgNameEn,
+                      onValueChange = { lgNameEn = it },
+                      label = { Text("League Name in English") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                      OutlinedTextField(
+                        value = lgSeason,
+                        onValueChange = { lgSeason = it },
+                        label = { Text("الموسم") },
+                        modifier = Modifier.weight(1f)
+                      )
+                      OutlinedTextField(
+                        value = lgTeamCount,
+                        onValueChange = { lgTeamCount = it },
+                        label = { Text("عدد الفرق المطلوبة") },
+                        modifier = Modifier.weight(1f)
+                      )
+                    }
+
+                    OutlinedTextField(
+                      value = lgPrizeAr,
+                      onValueChange = { lgPrizeAr = it },
+                      label = { Text("الجوائز والترتيب المالي والأوسمة *") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                      value = lgLocationAr,
+                      onValueChange = { lgLocationAr = it },
+                      label = { Text("المستضيف والموقع الكروي المعتمد *") },
+                      modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                      onClick = {
+                        if (lgImageUri == null) {
+                          viewModel.triggerSystemNotification(
+                            "صورة الإعلان ناقصة 📸",
+                            "يجب إرفاق صورة حية تعبر عن الدوري لترخيص تنظيم البطولة إعلانياً!"
+                          )
+                        } else if (lgNameAr.isNotEmpty() && lgPrizeAr.isNotEmpty() && lgLocationAr.isNotEmpty()) {
+                          val newLg = League(
+                            nameAr = lgNameAr,
+                            nameEn = lgNameEn.ifEmpty { lgNameAr },
+                            season = lgSeason,
+                            teamCount = lgTeamCount.toIntOrNull() ?: 8,
+                            status = "UPCOMING",
+                            prizeAr = lgPrizeAr,
+                            prizeEn = lgPrizeEn.ifEmpty { lgPrizeAr },
+                            locationAr = lgLocationAr,
+                            locationEn = lgLocationEn.ifEmpty { lgLocationAr },
+                            maxPlayersPerTeam = lgMaxPlayers.toIntOrNull() ?: 12,
+                            imageUri = lgImageUri ?: ""
+                          )
+                          viewModel.addNewLeague(newLg)
+                          showAddLeagueForm = false
+                          viewModel.triggerSystemNotification("دوري جديد انطلق 🏆", "تم نشر وتسجيل البطولة ($lgNameAr) بنجاح وقبول طلبات انتساب الفرق.")
+                        } else {
+                          viewModel.triggerSystemNotification("نقص في البيانات", "يرجى إكمال كتابة اسم البطولة، تفاصيل الجائزة، وموقع الاستضافة.")
+                        }
+                      },
+                      colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+                      shape = RoundedCornerShape(10.dp),
+                      modifier = Modifier.fillMaxWidth()
+                    ) {
+                      Text("إشهار وجدولة الدوري الكروي 🏆", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                } else {
+                  // Leagues List
+                  LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize()
+                  ) {
+                    items(leaguesList) { lg ->
+                      Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (viewModel.isDarkMode) DarkCardBg else Color.White),
+                        border = BorderStroke(1.dp, if (viewModel.isDarkMode) DarkBorder else LightBorder),
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                          Text(text = lg.nameAr, fontWeight = FontWeight.Bold, color = if (viewModel.isDarkMode) Color.White else DeepSlate)
+                          Text(text = "الموقع: ${lg.locationAr} | الجوائز: ${lg.prizeAr}", color = Color.Gray, fontSize = 11.sp)
+                          Text(text = "الموسم: ${lg.season} | الفرق: ${lg.teamCount}", color = ForestGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                          val img = if (lg.imageUri.isNotEmpty()) lg.imageUri else when (lg.id) {
+                            1 -> "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=500&auto=format&fit=crop"
+                            2 -> "https://images.unsplash.com/photo-1551958219-acbc608c6377?w=500&auto=format&fit=crop"
+                            3 -> "https://images.unsplash.com/photo-1459865264687-595d652de67e?w=500&auto=format&fit=crop"
+                            else -> "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=500&auto=format&fit=crop"
+                          }
+
+                          Spacer(modifier = Modifier.height(8.dp))
+                          AsyncImage(
+                            model = img,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                              .fillMaxWidth()
+                              .height(100.dp)
+                              .clip(RoundedCornerShape(8.dp))
+                          )
                         }
                       }
                     }
@@ -685,7 +1313,7 @@ fun AdminScreen(viewModel: AppViewModel) {
           ) {
             // الإحصائيات الكاملة
             Text(
-              text = if (viewModel.isArabic) "الإحصائيات الكلية للشبكة" else "Malaebna Total Network Metrics",
+              text = if (viewModel.isArabic) "الإحصائيات الكلية للشبكة" else "Al-Captain Total Network Metrics",
               style = MaterialTheme.typography.titleMedium,
               color = ForestGreen,
               fontWeight = FontWeight.Bold
@@ -913,13 +1541,6 @@ fun AdminScreen(viewModel: AppViewModel) {
             )
 
             OutlinedTextField(
-              value = viewModel.adminAppWalletPhone,
-              onValueChange = { viewModel.adminAppWalletPhone = it },
-              label = { Text("رقم محفظة كاش المخصصة لاستقبال التحويلات (سيريتل كاش)") },
-              modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
               value = bookingPolicyText,
               onValueChange = { bookingPolicyText = it },
               label = { Text("سياسة حجز الملاعب الرسمية للمستخدم") },
@@ -1120,5 +1741,29 @@ fun LegendItem(color: Color, text: String) {
     Box(modifier = Modifier.size(10.dp).background(color, CircleShape))
     Spacer(modifier = Modifier.width(6.dp))
     Text(text = text, fontSize = 11.sp, color = Color.LightGray, fontWeight = FontWeight.Bold)
+  }
+}
+
+fun exportToExcelCSV(context: android.content.Context, fileName: String, csvContent: String, viewModel: AppViewModel) {
+  try {
+    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    val clip = android.content.ClipData.newPlainText(fileName, csvContent)
+    clipboard.setPrimaryClip(clip)
+
+    val sendIntent = android.content.Intent().apply {
+      action = android.content.Intent.ACTION_SEND
+      putExtra(android.content.Intent.EXTRA_TEXT, csvContent)
+      putExtra(android.content.Intent.EXTRA_SUBJECT, fileName)
+      type = "text/plain"
+    }
+    val shareIntent = android.content.Intent.createChooser(sendIntent, "تصدير إلى إكسل")
+    context.startActivity(shareIntent)
+
+    viewModel.triggerSystemNotification(
+      "تصدير البيانات بنجاح ✅",
+      "تم نسخ ملف CSV متوافق مع إكسل للحافظة ومشاركته بنجاح!"
+    )
+  } catch (e: Exception) {
+    e.printStackTrace()
   }
 }

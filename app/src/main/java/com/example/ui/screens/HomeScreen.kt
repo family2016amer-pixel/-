@@ -19,8 +19,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
@@ -34,6 +36,12 @@ import com.example.data.Playground
 import com.example.ui.AppTab
 import com.example.ui.AppViewModel
 import com.example.ui.theme.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import coil.compose.AsyncImage
+import com.example.data.HomeBanner
+import kotlinx.coroutines.delay
+
 
 @Composable
 fun HomeScreen(viewModel: AppViewModel) {
@@ -133,9 +141,9 @@ fun HomeScreen(viewModel: AppViewModel) {
       }
 
       // ==========================================
-      // PREMIUM COACH STADIUM HERO BANNER
+      // PREMIUM COACH STADIUM HERO BANNER / IMAGE SLIDER
       // ==========================================
-      CoachStadiumBanner(viewModel = viewModel)
+      HomeImageSlider(viewModel = viewModel)
 
       // ==========================================
       // 2x2 APP QUICK NAVIGATION GRID
@@ -200,7 +208,7 @@ fun HomeHeader(viewModel: AppViewModel, unreadNotificationsCount: Int, onNotific
         ) {
           Image(
             painter = painterResource(id = R.drawable.img_app_logo),
-            contentDescription = "Malaebna Logo",
+            contentDescription = "Al-Captain Logo",
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize().clip(CircleShape).padding(2.dp)
           )
@@ -209,7 +217,7 @@ fun HomeHeader(viewModel: AppViewModel, unreadNotificationsCount: Int, onNotific
       Spacer(modifier = Modifier.width(10.dp))
       Column {
         Text(
-          text = if (viewModel.isArabic) "ملعبنا" else "Malaebna",
+          text = if (viewModel.isArabic) "الكابتن" else "Al-Captain",
           color = ForestGreen,
           fontSize = 18.sp,
           fontWeight = FontWeight.Bold,
@@ -226,31 +234,61 @@ fun HomeHeader(viewModel: AppViewModel, unreadNotificationsCount: Int, onNotific
 
     // 2. Buttons: Notification bell & Profile
     Row(verticalAlignment = Alignment.CenterVertically) {
+      val infiniteTransition = rememberInfiniteTransition(label = "bellPulse")
+      val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(
+          animation = tween(1200, easing = LinearEasing),
+          repeatMode = RepeatMode.Restart
+        ),
+        label = "pulseScale"
+      )
+      val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+          animation = tween(1200, easing = LinearEasing),
+          repeatMode = RepeatMode.Restart
+        ),
+        label = "pulseAlpha"
+      )
+
       // Notification bell icon with unread count badge
-      Box(contentAlignment = Alignment.TopEnd) {
-        Box(
-          modifier = Modifier
-            .size(38.dp)
-            .background(
-              color = if (viewModel.isDarkMode) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.04f),
-              shape = CircleShape
-            )
-            .border(
-              width = 1.dp,
-              color = if (viewModel.isDarkMode) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f),
-              shape = CircleShape
-            )
-            .clickable { onNotificationClick() },
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.Default.Notifications,
-            contentDescription = "Notifications list",
-            tint = if (viewModel.isDarkMode) Color.White else DeepSlate,
-            modifier = Modifier.size(20.dp)
+      Box(contentAlignment = Alignment.Center) {
+        if (unreadNotificationsCount > 0) {
+          Box(
+            modifier = Modifier
+              .size(38.dp)
+              .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale)
+              .background(color = NeonPink.copy(alpha = pulseAlpha), shape = CircleShape)
           )
         }
-        if (unreadNotificationsCount > 0) {
+
+        Box(contentAlignment = Alignment.TopEnd) {
+          Box(
+            modifier = Modifier
+              .size(38.dp)
+              .background(
+                color = if (viewModel.isDarkMode) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.04f),
+                shape = CircleShape
+              )
+              .border(
+                width = 1.dp,
+                color = if (viewModel.isDarkMode) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f),
+                shape = CircleShape
+              )
+              .clickable { onNotificationClick() },
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Notifications,
+              contentDescription = "Notifications list",
+              tint = if (viewModel.isDarkMode) Color.White else DeepSlate,
+              modifier = Modifier.size(20.dp)
+            )
+          }
+          if (unreadNotificationsCount > 0) {
           Box(
             modifier = Modifier
               .offset(x = 2.dp, y = (-2).dp)
@@ -267,6 +305,7 @@ fun HomeHeader(viewModel: AppViewModel, unreadNotificationsCount: Int, onNotific
           }
         }
       }
+    }
 
       Spacer(modifier = Modifier.width(10.dp))
 
@@ -340,7 +379,11 @@ fun CoachStadiumBanner(viewModel: AppViewModel) {
           )
           Spacer(modifier = Modifier.width(6.dp))
           Text(
-            text = if (viewModel.isArabic) "مرحباً بك في ملاعبنا" else "Welcome to Malaebna",
+            text = if (viewModel.isArabic) {
+              if (viewModel.userName.isNotEmpty()) "مرحباً بك كابتن ${viewModel.userName} ⚽" else "مرحباً بك في الكابتن ⚽"
+            } else {
+              if (viewModel.userName.isNotEmpty()) "Welcome, Captain ${viewModel.userName} ⚽" else "Welcome to Al-Captain ⚽"
+            },
             color = Gold,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold
@@ -396,6 +439,13 @@ fun GridQuickNavigation(viewModel: AppViewModel) {
       emoji = "🏃",
       color = NeonPink,
       tab = AppTab.PLAYERS
+    ),
+    GridNavItem(
+      titleAr = "إدارة الفرق",
+      titleEn = "Team Management",
+      emoji = "🛡️",
+      color = Color(0xFFF59E0B), // Amber
+      tab = AppTab.TEAMS
     )
   )
 
@@ -418,7 +468,10 @@ fun GridQuickNavigation(viewModel: AppViewModel) {
       GridCard(item = items[3], viewModel = viewModel, modifier = Modifier.weight(1f))
     }
     Spacer(modifier = Modifier.height(12.dp))
-    GridCardHorizontal(item = items[4], viewModel = viewModel, modifier = Modifier.fillMaxWidth())
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+      GridCard(item = items[4], viewModel = viewModel, modifier = Modifier.weight(1f))
+      GridCard(item = items[5], viewModel = viewModel, modifier = Modifier.weight(1f))
+    }
   }
 }
 
@@ -740,7 +793,7 @@ fun NotificationsDialog(
     Card(
       shape = RoundedCornerShape(24.dp),
       colors = CardDefaults.cardColors(containerColor = DarkCardBg),
-      border = BorderStroke(1.5.dp, ForestGreen.copy(alpha = 0.5f)),
+      border = BorderStroke(1.5.dp, Gold.copy(alpha = 0.5f)),
       modifier = Modifier
         .fillMaxWidth()
         .heightIn(max = 500.dp)
@@ -779,7 +832,7 @@ fun NotificationsDialog(
                 viewModel.repository.markAllNotificationsAsRead()
               }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+            colors = ButtonDefaults.buttonColors(containerColor = Gold),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.weight(1f).height(36.dp),
             contentPadding = PaddingValues(0.dp)
@@ -798,14 +851,14 @@ fun NotificationsDialog(
                 viewModel.repository.clearAllNotifications()
               }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.3f)),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.weight(1f).height(36.dp),
             contentPadding = PaddingValues(0.dp)
           ) {
             Text(
               text = if (viewModel.isArabic) "مسح الكل" else "Clear All",
-              color = Color.Black,
+              color = Color.White,
               fontWeight = FontWeight.Bold,
               fontSize = 12.sp
             )
@@ -846,6 +899,9 @@ fun NotificationsDialog(
                 else -> "📢"
               }
               
+              val phoneRegex = Regex("""09\d{8}""")
+              val foundPhone = phoneRegex.find(notification.messageAr)?.value ?: phoneRegex.find(notification.messageEn)?.value
+
               Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
@@ -853,7 +909,7 @@ fun NotificationsDialog(
                 ),
                 border = BorderStroke(
                   width = 1.dp,
-                  color = if (notification.isRead) Color.Transparent else ForestGreen.copy(alpha = 0.25f)
+                  color = if (notification.isRead) Color.Transparent else Gold.copy(alpha = 0.25f)
                 ),
                 modifier = Modifier.fillMaxWidth()
               ) {
@@ -875,8 +931,662 @@ fun NotificationsDialog(
                       style = MaterialTheme.typography.bodySmall,
                       color = if (notification.isRead) Color.Gray.copy(alpha = 0.8f) else Color.LightGray,
                     )
+                    
+                    if (foundPhone != null) {
+                      Spacer(modifier = Modifier.height(8.dp))
+                      Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                      ) {
+                        val context = LocalContext.current
+                        Button(
+                          onClick = {
+                            try {
+                              val intent = android.content.Intent(
+                                android.content.Intent.ACTION_DIAL,
+                                android.net.Uri.parse("tel:$foundPhone")
+                              )
+                              context.startActivity(intent)
+                            } catch (e: Exception) {
+                              // Fallback
+                            }
+                          },
+                          colors = ButtonDefaults.buttonColors(
+                            containerColor = Gold,
+                            contentColor = Color.Black
+                          ),
+                          shape = RoundedCornerShape(8.dp),
+                          modifier = Modifier.height(28.dp),
+                          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        ) {
+                          Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                          ) {
+                            Text(text = "📞", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                              text = if (viewModel.isArabic) "اتصال" else "Call",
+                              fontSize = 11.sp,
+                              fontWeight = FontWeight.Bold
+                            )
+                          }
+                        }
+
+                        Button(
+                          onClick = {
+                            try {
+                              // WhatsApp link
+                              val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse("https://wa.me/963${foundPhone.substring(1)}")
+                              )
+                              context.startActivity(intent)
+                            } catch (e: Exception) {
+                              // Fallback
+                            }
+                          },
+                          colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF25D366),
+                            contentColor = Color.White
+                          ),
+                          shape = RoundedCornerShape(8.dp),
+                          modifier = Modifier.height(28.dp),
+                          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        ) {
+                          Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                          ) {
+                            Text(text = "💬", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                              text = if (viewModel.isArabic) "واتساب" else "WhatsApp",
+                              fontSize = 11.sp,
+                              fontWeight = FontWeight.Bold
+                            )
+                          }
+                        }
+                      }
+                    }
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HomeImageSlider(viewModel: AppViewModel) {
+  val bannersList by viewModel.banners.collectAsState()
+  if (bannersList.isEmpty()) {
+    // Fallback if no banners loaded yet
+    CoachStadiumBanner(viewModel = viewModel)
+    return
+  }
+
+  // Active page state
+  val pagerState = rememberPagerState(pageCount = { bannersList.size })
+  
+  // Auto-scroll effect every 5 seconds
+  LaunchedEffect(bannersList.size) {
+    if (bannersList.size > 1) {
+      while (true) {
+        delay(5000)
+        val nextPage = (pagerState.currentPage + 1) % bannersList.size
+        pagerState.animateScrollToPage(
+          page = nextPage,
+          animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+        )
+      }
+    }
+  }
+
+  var showAdminDialog by remember { mutableStateOf(false) }
+
+  if (showAdminDialog) {
+    ManageBannersDialog(viewModel = viewModel, onDismiss = { showAdminDialog = false })
+  }
+
+  Card(
+    shape = RoundedCornerShape(24.dp),
+    border = BorderStroke(1.5.dp, Gold.copy(alpha = 0.6f)),
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(180.dp)
+      .shadow(8.dp, RoundedCornerShape(24.dp))
+  ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+      HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize()
+      ) { page ->
+        val banner = bannersList[page]
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .clickable {
+              if (banner.clickActionTab.isNotEmpty()) {
+                try {
+                  val tab = AppTab.valueOf(banner.clickActionTab)
+                  viewModel.currentTab = tab
+                } catch (e: Exception) {
+                  // Ignore if invalid
+                }
+              }
+            }
+        ) {
+          // Check if imageUrl is web URL or local drawable resource
+          if (banner.imageUrl.startsWith("http") || banner.imageUrl.startsWith("content://")) {
+            AsyncImage(
+              model = banner.imageUrl,
+              contentDescription = banner.titleAr,
+              contentScale = ContentScale.Crop,
+              modifier = Modifier.fillMaxSize()
+            )
+          } else {
+            // Local fallback resources
+            val drawableId = when (banner.imageUrl) {
+              "img_banner_player_kick" -> R.drawable.img_banner_player_kick
+              "img_banner_captain" -> R.drawable.img_banner_captain
+              "img_banner_coach" -> R.drawable.img_banner_coach
+              "img_banner_shield_logo" -> R.drawable.img_banner_shield_logo
+              "img_banner_stadium_starry" -> R.drawable.img_banner_stadium_starry
+              "img_banner_app_logo" -> R.drawable.img_banner_app_logo
+              "img_banner_stadium_art" -> R.drawable.img_banner_stadium_art
+              "img_coach_stadium" -> R.drawable.img_coach_stadium
+              "img_playground_hero" -> R.drawable.img_playground_hero
+              "img_app_logo" -> R.drawable.img_app_logo
+              else -> R.drawable.img_coach_stadium
+            }
+            Image(
+              painter = painterResource(id = drawableId),
+              contentDescription = banner.titleAr,
+              contentScale = ContentScale.Crop,
+              modifier = Modifier.fillMaxSize()
+            )
+          }
+
+          // Dark gradient overlay for modern UI
+          Box(
+            modifier = Modifier
+              .fillMaxSize()
+              .background(
+                Brush.verticalGradient(
+                  colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                )
+              )
+          )
+
+          // Content overlay (Title, Subtitle, Indicator dot)
+          Column(
+            modifier = Modifier
+              .align(Alignment.BottomStart)
+              .padding(16.dp)
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Box(
+                modifier = Modifier
+                  .background(Gold, CircleShape)
+                  .size(8.dp)
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = if (viewModel.isArabic) banner.titleAr else banner.titleEn,
+                color = Gold,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+              )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+              text = if (viewModel.isArabic) banner.descAr else banner.descEn,
+              color = Color.White,
+              fontSize = 14.sp,
+              fontWeight = FontWeight.Bold,
+              lineHeight = 18.sp,
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+      }
+
+      // Page indicators (dots) in bottom-end corner
+      Row(
+        modifier = Modifier
+          .align(Alignment.BottomEnd)
+          .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+      ) {
+        bannersList.forEachIndexed { index, _ ->
+          val isSelected = pagerState.currentPage == index
+          Box(
+            modifier = Modifier
+              .size(if (isSelected) 10.dp else 6.dp)
+              .background(
+                color = if (isSelected) Gold else Color.White.copy(alpha = 0.5f),
+                shape = CircleShape
+              )
+          )
+        }
+      }
+
+      // Admin Manage Button (visible if user is ADMIN)
+      if (viewModel.userRole == "ADMIN") {
+        IconButton(
+          onClick = { showAdminDialog = true },
+          modifier = Modifier
+            .align(Alignment.TopEnd)
+            .padding(12.dp)
+            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+            .size(36.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = "Manage Slides",
+            tint = Gold,
+            modifier = Modifier.size(18.dp)
+          )
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManageBannersDialog(
+  viewModel: AppViewModel,
+  onDismiss: () -> Unit
+) {
+  val bannersList by viewModel.banners.collectAsState()
+  val scope = rememberCoroutineScope()
+
+  // States: "LIST", "ADD", "EDIT"
+  var currentScreen by remember { mutableStateOf("LIST") }
+  var editingBanner by remember { mutableStateOf<HomeBanner?>(null) }
+
+  // Form fields
+  var imageUrl by remember { mutableStateOf("") }
+  var titleAr by remember { mutableStateOf("") }
+  var titleEn by remember { mutableStateOf("") }
+  var descAr by remember { mutableStateOf("") }
+  var descEn by remember { mutableStateOf("") }
+  var clickActionTab by remember { mutableStateOf("") }
+
+  // Reset form helper
+  fun resetForm(banner: HomeBanner? = null) {
+    if (banner != null) {
+      imageUrl = banner.imageUrl
+      titleAr = banner.titleAr
+      titleEn = banner.titleEn
+      descAr = banner.descAr
+      descEn = banner.descEn
+      clickActionTab = banner.clickActionTab
+    } else {
+      imageUrl = ""
+      titleAr = ""
+      titleEn = ""
+      descAr = ""
+      descEn = ""
+      clickActionTab = ""
+    }
+  }
+
+  androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    Card(
+      shape = RoundedCornerShape(24.dp),
+      colors = CardDefaults.cardColors(containerColor = if (viewModel.isDarkMode) DarkCardBg else Color.White),
+      border = BorderStroke(1.5.dp, Gold.copy(alpha = 0.5f)),
+      modifier = Modifier
+        .fillMaxWidth()
+        .heightIn(max = 580.dp)
+        .padding(16.dp)
+    ) {
+      Column(
+        modifier = Modifier
+          .padding(20.dp)
+          .fillMaxWidth()
+      ) {
+        // Header
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = when (currentScreen) {
+              "ADD" -> if (viewModel.isArabic) "➕ إضافة شريحة جديدة" else "➕ Add New Slide"
+              "EDIT" -> if (viewModel.isArabic) "✏️ تعديل الشريحة" else "✏️ Edit Slide"
+              else -> if (viewModel.isArabic) "🖼️ إدارة سلايدر الصور" else "🖼️ Manage Image Slider"
+            },
+            style = MaterialTheme.typography.titleLarge,
+            color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+            fontWeight = FontWeight.Bold
+          )
+          IconButton(onClick = {
+            if (currentScreen != "LIST") {
+              currentScreen = "LIST"
+            } else {
+              onDismiss()
+            }
+          }) {
+            Icon(
+              imageVector = if (currentScreen != "LIST") Icons.Default.ArrowBack else Icons.Default.Close,
+              contentDescription = "Back or Close",
+              tint = if (viewModel.isDarkMode) Color.White else DeepSlate
+            )
+          }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        when (currentScreen) {
+          "LIST" -> {
+            LazyColumn(
+              modifier = Modifier.weight(1f),
+              verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+              items(bannersList) { banner ->
+                Card(
+                  colors = CardDefaults.cardColors(
+                    containerColor = if (viewModel.isDarkMode) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+                  ),
+                  shape = RoundedCornerShape(12.dp),
+                  border = BorderStroke(1.dp, if (viewModel.isDarkMode) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                  modifier = Modifier.fillMaxWidth()
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .padding(10.dp)
+                      .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    // Small thumbnail
+                    Box(
+                      modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Gray.copy(alpha = 0.2f))
+                    ) {
+                      if (banner.imageUrl.startsWith("http") || banner.imageUrl.startsWith("content://")) {
+                        AsyncImage(
+                          model = banner.imageUrl,
+                          contentDescription = null,
+                          contentScale = ContentScale.Crop,
+                          modifier = Modifier.fillMaxSize()
+                        )
+                      } else {
+                        val drawableId = when (banner.imageUrl) {
+                          "img_banner_player_kick" -> R.drawable.img_banner_player_kick
+                          "img_banner_captain" -> R.drawable.img_banner_captain
+                          "img_banner_coach" -> R.drawable.img_banner_coach
+                          "img_banner_shield_logo" -> R.drawable.img_banner_shield_logo
+                          "img_banner_stadium_starry" -> R.drawable.img_banner_stadium_starry
+                          "img_banner_app_logo" -> R.drawable.img_banner_app_logo
+                          "img_banner_stadium_art" -> R.drawable.img_banner_stadium_art
+                          "img_coach_stadium" -> R.drawable.img_coach_stadium
+                          "img_playground_hero" -> R.drawable.img_playground_hero
+                          "img_app_logo" -> R.drawable.img_app_logo
+                          else -> R.drawable.img_coach_stadium
+                        }
+                        Image(
+                          painter = painterResource(id = drawableId),
+                          contentDescription = null,
+                          contentScale = ContentScale.Crop,
+                          modifier = Modifier.fillMaxSize()
+                        )
+                      }
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Text titles
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = if (viewModel.isArabic) banner.titleAr else banner.titleEn,
+                        color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                      )
+                      Text(
+                        text = if (viewModel.isArabic) banner.descAr else banner.descEn,
+                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                      )
+                    }
+
+                    // Action buttons
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                      IconButton(
+                        onClick = {
+                          editingBanner = banner
+                          resetForm(banner)
+                          currentScreen = "EDIT"
+                        },
+                        modifier = Modifier.size(32.dp)
+                      ) {
+                        Icon(
+                          imageVector = Icons.Default.Edit,
+                          contentDescription = "Edit",
+                          tint = Gold,
+                          modifier = Modifier.size(16.dp)
+                        )
+                      }
+                      IconButton(
+                        onClick = {
+                          viewModel.deleteBanner(banner)
+                        },
+                        modifier = Modifier.size(32.dp)
+                      ) {
+                        Icon(
+                          imageVector = Icons.Default.Delete,
+                          contentDescription = "Delete",
+                          tint = StatusError,
+                          modifier = Modifier.size(16.dp)
+                        )
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add Slide Button
+            Button(
+              onClick = {
+                editingBanner = null
+                resetForm()
+                currentScreen = "ADD"
+              },
+              colors = ButtonDefaults.buttonColors(containerColor = Gold),
+              shape = RoundedCornerShape(12.dp),
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+            ) {
+              Text(
+                text = if (viewModel.isArabic) "➕ إضافة شريحة جديدة" else "➕ Add New Slide",
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+              )
+            }
+          }
+
+          "ADD", "EDIT" -> {
+            Column(
+              modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+              verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+              // Image URL Field
+              OutlinedTextField(
+                value = imageUrl,
+                onValueChange = { imageUrl = it },
+                label = { Text(if (viewModel.isArabic) "رابط الصورة (URL)" else "Image URL") },
+                placeholder = { Text("https://images.unsplash.com/... or local resource name") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = if (viewModel.isDarkMode) Color.Gray else Color.LightGray,
+                  focusedLabelColor = Gold,
+                  unfocusedLabelColor = Color.Gray
+                )
+              )
+
+              // Title Ar
+              OutlinedTextField(
+                value = titleAr,
+                onValueChange = { titleAr = it },
+                label = { Text(if (viewModel.isArabic) "العنوان (بالعربية)" else "Title (Arabic)") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = if (viewModel.isDarkMode) Color.Gray else Color.LightGray,
+                  focusedLabelColor = Gold,
+                  unfocusedLabelColor = Color.Gray
+                )
+              )
+
+              // Title En
+              OutlinedTextField(
+                value = titleEn,
+                onValueChange = { titleEn = it },
+                label = { Text(if (viewModel.isArabic) "العنوان (بالإنكليزية)" else "Title (English)") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = if (viewModel.isDarkMode) Color.Gray else Color.LightGray,
+                  focusedLabelColor = Gold,
+                  unfocusedLabelColor = Color.Gray
+                )
+              )
+
+              // Desc Ar
+              OutlinedTextField(
+                value = descAr,
+                onValueChange = { descAr = it },
+                label = { Text(if (viewModel.isArabic) "الوصف (بالعربية)" else "Description (Arabic)") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = if (viewModel.isDarkMode) Color.Gray else Color.LightGray,
+                  focusedLabelColor = Gold,
+                  unfocusedLabelColor = Color.Gray
+                )
+              )
+
+              // Desc En
+              OutlinedTextField(
+                value = descEn,
+                onValueChange = { descEn = it },
+                label = { Text(if (viewModel.isArabic) "الوصف (بالإنكليزية)" else "Description (English)") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = if (viewModel.isDarkMode) Color.Gray else Color.LightGray,
+                  focusedLabelColor = Gold,
+                  unfocusedLabelColor = Color.Gray
+                )
+              )
+
+              // Action Tab
+              OutlinedTextField(
+                value = clickActionTab,
+                onValueChange = { clickActionTab = it },
+                label = { Text(if (viewModel.isArabic) "الانتقال عند الضغط (رمز التبويب)" else "Tab Click Action (e.g. PLAYGROUNDS)") },
+                placeholder = { Text("PLAYGROUNDS, LEAGUES, ACADEMIES etc.") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Gold,
+                  unfocusedBorderColor = if (viewModel.isDarkMode) Color.Gray else Color.LightGray,
+                  focusedLabelColor = Gold,
+                  unfocusedLabelColor = Color.Gray
+                )
+              )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Save / Cancel Buttons
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+              Button(
+                onClick = { currentScreen = "LIST" },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f).height(48.dp)
+              ) {
+                Text(
+                  text = if (viewModel.isArabic) "إلغاء" else "Cancel",
+                  color = if (viewModel.isDarkMode) Color.White else DeepSlate,
+                  fontWeight = FontWeight.Bold
+                )
+              }
+
+              Button(
+                onClick = {
+                  if (imageUrl.isNotEmpty()) {
+                    val finalBanner = if (currentScreen == "EDIT" && editingBanner != null) {
+                      editingBanner!!.copy(
+                        imageUrl = imageUrl,
+                        titleAr = titleAr,
+                        titleEn = titleEn,
+                        descAr = descAr,
+                        descEn = descEn,
+                        clickActionTab = clickActionTab
+                      )
+                    } else {
+                      HomeBanner(
+                        imageUrl = imageUrl,
+                        titleAr = titleAr,
+                        titleEn = titleEn,
+                        descAr = descAr,
+                        descEn = descEn,
+                        clickActionTab = clickActionTab
+                      )
+                    }
+
+                    if (currentScreen == "EDIT") {
+                      viewModel.updateBanner(finalBanner)
+                    } else {
+                      viewModel.addNewBanner(finalBanner)
+                    }
+                    currentScreen = "LIST"
+                  }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f).height(48.dp),
+                enabled = imageUrl.isNotEmpty()
+              ) {
+                Text(
+                  text = if (viewModel.isArabic) "حفظ" else "Save",
+                  color = Color.Black,
+                  fontWeight = FontWeight.Bold
+                )
               }
             }
           }

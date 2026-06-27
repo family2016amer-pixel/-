@@ -68,8 +68,17 @@ interface TeamDao {
   @Query("SELECT * FROM teams WHERE leagueId = :leagueId ORDER BY id DESC")
   fun getTeamsForLeague(leagueId: Int): Flow<List<Team>>
 
+  @Query("SELECT * FROM teams WHERE id = :id LIMIT 1")
+  suspend fun getTeamById(id: Int): Team?
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertTeam(team: Team)
+
+  @Update
+  suspend fun updateTeam(team: Team)
+
+  @Delete
+  suspend fun deleteTeam(team: Team)
 }
 
 @Dao
@@ -149,3 +158,62 @@ interface NotificationDao {
   @Query("DELETE FROM notifications")
   suspend fun clearAll()
 }
+
+@Dao
+interface UserDao {
+  @Query("SELECT * FROM users ORDER BY createdAt DESC")
+  fun getAllUsers(): Flow<List<User>>
+
+  @Query("SELECT * FROM users WHERE phone = :phone LIMIT 1")
+  suspend fun getUserByPhone(phone: String): User?
+
+  @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
+  suspend fun getUserById(id: Int): User?
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertUser(user: User)
+
+  @Update
+  suspend fun updateUser(user: User)
+
+  @Query("DELETE FROM users WHERE phone = :phone")
+  suspend fun deleteUserByPhone(phone: String)
+}
+
+@Dao
+interface TeamInvitationDao {
+  @Query("SELECT * FROM team_invitations ORDER BY id DESC")
+  fun getAllInvitations(): Flow<List<TeamInvitation>>
+
+  @Query("SELECT * FROM team_invitations WHERE inviteePhone = :phone ORDER BY id DESC")
+  fun getInvitationsForUser(phone: String): Flow<List<TeamInvitation>>
+
+  @Query("SELECT * FROM team_invitations WHERE teamId = :teamId ORDER BY id DESC")
+  fun getInvitationsForTeam(teamId: Int): Flow<List<TeamInvitation>>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertInvitation(invitation: TeamInvitation)
+
+  @Update
+  suspend fun updateInvitation(invitation: TeamInvitation)
+
+  @Query("DELETE FROM team_invitations WHERE id = :id")
+  suspend fun deleteInvitationById(id: Int)
+}
+
+@Dao
+interface HomeBannerDao {
+  @Query("SELECT * FROM home_banners ORDER BY id ASC")
+  fun getAllBanners(): Flow<List<HomeBanner>>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertBanner(banner: HomeBanner)
+
+  @Update
+  suspend fun updateBanner(banner: HomeBanner)
+
+  @Delete
+  suspend fun deleteBanner(banner: HomeBanner)
+}
+
+

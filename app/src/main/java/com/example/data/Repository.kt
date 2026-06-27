@@ -28,7 +28,18 @@ class AppRepository(private val db: AppDatabase) {
   // Teams
   val allTeams: Flow<List<Team>> = db.teamDao().getAllTeams()
   fun getTeamsForLeague(leagueId: Int): Flow<List<Team>> = db.teamDao().getTeamsForLeague(leagueId)
+  suspend fun getTeamById(id: Int) = db.teamDao().getTeamById(id)
   suspend fun insertTeam(team: Team) = db.teamDao().insertTeam(team)
+  suspend fun updateTeam(team: Team) = db.teamDao().updateTeam(team)
+  suspend fun deleteTeam(team: Team) = db.teamDao().deleteTeam(team)
+
+  // Team Invitations
+  val allInvitations: Flow<List<TeamInvitation>> = db.teamInvitationDao().getAllInvitations()
+  fun getInvitationsForUser(phone: String): Flow<List<TeamInvitation>> = db.teamInvitationDao().getInvitationsForUser(phone)
+  fun getInvitationsForTeam(teamId: Int): Flow<List<TeamInvitation>> = db.teamInvitationDao().getInvitationsForTeam(teamId)
+  suspend fun insertInvitation(invitation: TeamInvitation) = db.teamInvitationDao().insertInvitation(invitation)
+  suspend fun updateInvitation(invitation: TeamInvitation) = db.teamInvitationDao().updateInvitation(invitation)
+  suspend fun deleteInvitationById(id: Int) = db.teamInvitationDao().deleteInvitationById(id)
 
   // Friendly Matches
   val allMatches: Flow<List<FriendlyMatch>> = db.friendlyMatchDao().getAllMatches()
@@ -60,4 +71,18 @@ class AppRepository(private val db: AppDatabase) {
   suspend fun markNotificationAsRead(id: Int) = db.notificationDao().markAsRead(id)
   suspend fun markAllNotificationsAsRead() = db.notificationDao().markAllAsRead()
   suspend fun clearAllNotifications() = db.notificationDao().clearAll()
+
+  // Users
+  val allUsers: Flow<List<User>> = db.userDao().getAllUsers()
+  suspend fun getUserByPhone(phone: String) = db.userDao().getUserByPhone(phone)
+  suspend fun getUserById(id: Int) = db.userDao().getUserById(id)
+  suspend fun insertUser(user: User) = db.userDao().insertUser(user)
+  suspend fun updateUser(user: User) = db.userDao().updateUser(user)
+  suspend fun deleteUserByPhone(phone: String) = db.userDao().deleteUserByPhone(phone)
+
+  // Home Banners
+  val allBanners: Flow<List<HomeBanner>> = db.homeBannerDao().getAllBanners()
+  suspend fun insertBanner(banner: HomeBanner) = db.homeBannerDao().insertBanner(banner)
+  suspend fun updateBanner(banner: HomeBanner) = db.homeBannerDao().updateBanner(banner)
+  suspend fun deleteBanner(banner: HomeBanner) = db.homeBannerDao().deleteBanner(banner)
 }

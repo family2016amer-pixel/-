@@ -18,7 +18,8 @@ data class Playground(
   val managerPhone: String,
   val lat: Double,
   val lng: Double,
-  val amenities: String // Comma-separated: "referee,balls,water,pinnies,parking,shower"
+  val amenities: String, // Comma-separated: "referee,balls,water,pinnies,parking,shower"
+  val imageUri: String = ""
 )
 
 @Entity(tableName = "bookings")
@@ -57,7 +58,9 @@ data class League(
   val prizeEn: String,
   val locationAr: String,
   val locationEn: String,
-  val maxPlayersPerTeam: Int = 12
+  val maxPlayersPerTeam: Int = 12,
+  val imageUri: String = "",
+  val organizerPhone: String = "0944123456"
 )
 
 @Entity(tableName = "teams")
@@ -71,7 +74,9 @@ data class Team(
   val playersMain: String, // comma-separated names
   val playersSubs: String, // comma-separated names
   val logoUri: String = "",
-  val receiptUri: String = ""
+  val receiptUri: String = "",
+  val maxMainPlayers: Int = 7,
+  val whatsappLink: String = ""
 )
 
 @Entity(tableName = "friendly_matches")
@@ -84,14 +89,18 @@ data class FriendlyMatch(
   val dateStr: String, // "YYYY-MM-DD"
   val timeStr: String, // "18:00"
   val playersNeeded: Int,
-  val ageGroupAr: String, // "شباب", "رجال", "مخضرمين"
-  val ageGroupEn: String,
-  val skillLevelAr: String, // "مبتدئ", "متوسط", "محترف"
-  val skillLevelEn: String,
-  val costSharingAr: String, // "نصف ونصف", "الخاسر يدفع", "المستضيف يدفع"
-  val costSharingEn: String,
+  val playersRegistered: Int = 1,
+  val ageGroupAr: String, // "شباب", "رجال", "مخضرمين", "جميع الفئات"
+  val ageGroupEn: String = "All Classes",
+  val skillLevelAr: String, // "مبتدئ", "متوسط", "متقدم", "محترف"
+  val skillLevelEn: String = "Intermediate",
+  val costSharingAr: String, // "نصف ونصف", "الخاسر يدفع بالكامل", "المستضيف يدفع بالكامل"
+  val costSharingEn: String = "Shared",
   val organizerName: String,
   val organizerPhone: String,
+  val paymentAccount: String = "",
+  val notes: String = "",
+  val imageUrl: String = "",
   val status: String = "OPEN" // "OPEN", "JOINED", "CANCELLED"
 )
 
@@ -113,7 +122,8 @@ data class Academy(
   val descriptionAr: String,
   val descriptionEn: String,
   val scheduleAr: String,
-  val scheduleEn: String
+  val scheduleEn: String,
+  val imageUri: String = ""
 )
 
 @Entity(tableName = "academy_registrations")
@@ -179,3 +189,36 @@ data class Notification(
   val isRead: Boolean = false,
   val timestamp: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "users")
+data class User(
+  @PrimaryKey(autoGenerate = true) val id: Int = 0,
+  val fullName: String,
+  val phone: String,
+  val passwordHash: String,
+  val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "team_invitations")
+data class TeamInvitation(
+  @PrimaryKey(autoGenerate = true) val id: Int = 0,
+  val teamId: Int,
+  val teamName: String,
+  val captainName: String,
+  val inviteePhone: String,
+  val inviteeName: String,
+  val status: String = "PENDING" // "PENDING", "ACCEPTED", "REJECTED"
+)
+
+@Entity(tableName = "home_banners")
+data class HomeBanner(
+  @PrimaryKey(autoGenerate = true) val id: Int = 0,
+  val imageUrl: String,
+  val titleAr: String = "",
+  val titleEn: String = "",
+  val descAr: String = "",
+  val descEn: String = "",
+  val clickActionTab: String = ""
+)
+
+
